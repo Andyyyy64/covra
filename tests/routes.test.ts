@@ -19,6 +19,10 @@ describe('routeInfoForFile', () => {
       route: '/api/health',
       kind: 'app-route',
     })
+    expect(routeInfoForFile('/repo', '/repo/src/app/[locale]/(marketing)/page.tsx')).toEqual({
+      route: '/[locale]',
+      kind: 'app-page',
+    })
   })
 
   it('maps Pages Router files to public routes', () => {
@@ -37,6 +41,10 @@ describe('routeInfoForFile', () => {
     expect(routeInfoForFile('/repo', '/repo/pages/_app.tsx')).toEqual({
       route: '/_app',
       kind: 'pages-special',
+    })
+    expect(routeInfoForFile('/repo', '/repo/src/pages/home/index.tsx')).toEqual({
+      route: '/home',
+      kind: 'pages-page',
     })
   })
 })

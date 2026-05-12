@@ -17,7 +17,10 @@ const sourceExtensionPattern = /\.(?:js|jsx|ts|tsx)$/
 
 export function routeInfoForFile(rootDir: string, file: string): RouteInfo | undefined {
   const relative = relativeToRoot(rootDir, file)
-  const parts = relative.split('/')
+  const rawParts = relative.split('/')
+  const parts = rawParts[0] === 'src' && (rawParts[1] === 'app' || rawParts[1] === 'pages')
+    ? rawParts.slice(1)
+    : rawParts
 
   if (parts[0] === 'app') {
     return appRouteInfo(parts)

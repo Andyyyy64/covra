@@ -1,19 +1,22 @@
-type NextConfig = Record<string, unknown> & {
+type NextConfigLike = {
   productionBrowserSourceMaps?: boolean
-  experimental?: Record<string, unknown>
+  experimental?: object
 }
 
-export function withCovra<T extends NextConfig>(nextConfig: T): T {
+export function withCovra<T extends NextConfigLike>(nextConfig: T): T {
   if (!isCovraEnabled()) return nextConfig
+
+  const experimental =
+    typeof nextConfig.experimental === 'object' && nextConfig.experimental !== null ? nextConfig.experimental : {}
 
   return {
     ...nextConfig,
     productionBrowserSourceMaps: true,
     experimental: {
-      ...nextConfig.experimental,
+      ...experimental,
       serverSourceMaps: true,
     },
-  }
+  } as T
 }
 
 export const withE2ECoverage = withCovra

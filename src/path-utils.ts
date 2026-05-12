@@ -102,8 +102,12 @@ export function normalizeCoverageFilePath(rootDir: string, file: string): string
   }
 
   if (path.isAbsolute(normalized)) {
+    if (existsSync(normalized)) return path.normalize(normalized)
+
+    const nestedSourcePath = resolveNestedSourcePath(rootDir, normalized)
+    if (nestedSourcePath) return nestedSourcePath
+
     if (
-      !existsSync(normalized) &&
       (normalized.startsWith('/app/') || normalized.startsWith('/pages/') || normalized.startsWith('/src/'))
     ) {
       return path.resolve(rootDir, normalized.slice(1))
@@ -111,7 +115,8 @@ export function normalizeCoverageFilePath(rootDir: string, file: string): string
     return path.normalize(normalized)
   }
 
-  return path.resolve(rootDir, normalized)
+  const resolved = path.resolve(rootDir, normalized)
+  return resolveNestedSourcePath(rootDir, resolved) ?? resolved
 }
 
 export function isLikelyUserSource(rootDir: string, file: string): boolean {
@@ -122,4 +127,18 @@ export function isLikelyUserSource(rootDir: string, file: string): boolean {
     !rel.includes('/node_modules/') &&
     !rel.startsWith('node_modules/')
   )
+}
+
+function resolveNestedSourcePath(rootDir: string, file: string): string | undefined {
+  const normalized = slash(file)
+
+  for (const marker of ['/src/', '/app/', '/pages/']) {
+    const index = normalized.lastIndexOf(marker)
+    if (index < 0) continue
+
+    const candidate = path.resolve(rootDir, normalized.slice(index + 1))
+    if (existsSync(candidate)) return candidate
+  }
+
+  return undefined
 }
