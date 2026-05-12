@@ -2,13 +2,13 @@
 
 E2E UX coverage dashboard for Playwright-powered Next.js apps.
 
-Covra shows what real Playwright user flows cover by route. It collects browser and Next.js server runtime coverage, maps bundled JavaScript back to source files, writes a route-first UX dashboard, keeps Istanbul-compatible artifacts, and gives you diagnostics when the numbers look suspicious.
+Covra shows which product routes your real Playwright user flows actually exercise. It collects browser navigations, API requests, explicit UX state marks, browser runtime coverage, and Next.js server runtime coverage, maps bundled JavaScript back to source files, writes a route-first UX dashboard, keeps Istanbul-compatible artifacts, and gives you diagnostics when the numbers look suspicious.
 
 It is intentionally not a Vitest plugin. Vitest, Jest, c8, nyc, Codecov, and Sonar can consume or merge with Covra through standard Istanbul artifacts.
 
 ## Why Covra
 
-Unit coverage tells you what isolated tests execute. E2E coverage should tell you what product routes, states, and branches real user flows execute.
+Unit coverage tells you what isolated tests execute. E2E coverage should tell you which product routes, states, and branches real user flows exercise.
 
 Next.js makes that hard because meaningful code runs in more than one place: hydrated client components, server rendering, App Router route handlers, Pages Router API routes, and `getServerSideProps`. Covra treats those as one UX coverage problem and makes the result explainable by path.
 
@@ -23,6 +23,7 @@ Covra v0.2.1 is production-ready inside this explicit envelope:
 - webpack production builds for stable source maps
 - TypeScript, TSX, JavaScript, and JSX source files
 - route-first E2E UX dashboard as the main HTML report
+- E2E flow coverage based on observed navigations, API requests, and UX state marks
 - route coverage JSON for custom dashboards
 - HTML, LCOV, JSON, JSON summary, and text reports for source-level consumers
 - explicit UX state marks from Playwright tests through `covraMark()`
@@ -155,15 +156,17 @@ coverage/covra/index.html
 coverage/covra/route-coverage.json
 ```
 
-CLI output also prints route coverage:
+CLI output also prints route coverage. `E2E flow` is the primary UX signal. Source `Lines` and `Branches` stay visible as secondary source-level detail because Next.js server module loading can make source coverage look higher than the user journeys actually exercised.
 
 ```text
 Route Coverage
-Route              Kind          Lines              Branches           Runtime                UX states  File
-/                  app-page      100.0% (12/12)    100.0% (0/0)       server, merged         2          app/page.tsx
-/legacy            pages-page    100.0% (34/34)    100.0% (2/2)       browser, server        2          pages/legacy.tsx
-/api/legacy        pages-api     100.0% (8/8)      100.0% (0/0)       server, merged         1          pages/api/legacy.ts
+Route              Kind          E2E flow     Lines              Branches           Runtime                UX states  File
+/                  app-page      covered      100.0% (12/12)    100.0% (0/0)       browser, server        2          app/page.tsx
+/dashboard         app-page      missing      100.0% (18/18)    100.0% (0/0)       server, merged         0          app/dashboard/page.tsx
+/api/legacy        pages-api     covered      100.0% (8/8)      100.0% (0/0)       browser, server        1          pages/api/legacy.ts
 ```
+
+In that example, `/dashboard` has source lines mapped from server coverage, but the route is still `missing` because no Playwright user flow navigated to it or marked it. This is intentional: Covra treats source coverage as supporting detail, not as proof that a user journey is covered.
 
 Detailed setup is in [Getting Started](docs/getting-started.md).
 

@@ -103,7 +103,7 @@ Then import from that fixture:
 import { test, expect } from './covra.fixture'
 ```
 
-The fixture starts JavaScript coverage for Chromium pages and writes raw browser V8 artifacts under `.covra/raw/browser`.
+The fixture starts JavaScript coverage for Chromium pages and writes raw browser V8 artifacts under `.covra/raw/browser`. It also records top-level navigations and API requests so the dashboard can distinguish routes that were actually exercised by E2E flows from route files that were only loaded by the Next.js server.
 
 To make the UX dashboard more expressive, mark user-visible states inside tests:
 
@@ -118,7 +118,7 @@ test('checkout shows validation errors', async ({ page }, testInfo) => {
 })
 ```
 
-State marks are optional. Without them, Covra still reports route, runtime, line, and branch coverage. With them, the dashboard can show which product states were intentionally exercised.
+State marks are optional. Without them, Covra still reports route, E2E flow, runtime, line, and branch coverage. With them, the dashboard can show which product states were intentionally exercised.
 
 ## 4. Run the Next.js Server Through Covra
 
@@ -181,6 +181,13 @@ npx covra routes
 ```
 
 This prints route-level coverage for App Router pages, Pages Router pages, route handlers, and API routes.
+
+`E2E flow` is the primary signal:
+
+- `covered`: Playwright navigated to the route, requested the API route, or a test marked the route with `covraMark()`
+- `missing`: the route exists in the app, but no observed E2E flow exercised it
+
+Source `Lines` and `Branches` are still shown, but treat them as source-level detail. In Next.js production builds, server-side module loading can make source lines look covered even when a route is missing from the user-flow perspective.
 
 ```bash
 npx covra explain app/dashboard/page.tsx

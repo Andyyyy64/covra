@@ -205,6 +205,8 @@ Thresholds use Vitest-like semantics without depending on Vitest:
 - `100: true` requires full coverage for lines, statements, functions, and branches
 - glob keys apply nested threshold blocks to matching files
 
+Thresholds currently evaluate Istanbul source metrics. They do not fail CI on `E2E flow` status yet. Use `covra routes`, `route-coverage.json`, and the HTML dashboard to review missing route flows until route-flow thresholds are added.
+
 See [Reports, Thresholds, and Merge](reports-thresholds.md).
 
 ## `merge.coverageFiles`

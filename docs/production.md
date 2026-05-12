@@ -31,6 +31,7 @@ Reports:
 - JSON summary
 - text summary
 - route-first E2E UX dashboard
+- E2E flow coverage for route/page/API surfaces
 
 CI:
 
@@ -108,12 +109,14 @@ Browser coverage is written per test artifact. Server coverage is suite-level be
 
 This means Covra v0.2.1 can answer:
 
-- which files were covered by the E2E suite
-- which route files were covered by the E2E suite
+- which routes were observed by real E2E flows
+- which route files were loaded by browser/server runtime coverage
 - which explicit UX states were marked by tests
 - whether coverage came from browser, server, merged, or empty coverage
 
 It does not claim exact per-test server attribution.
+
+Treat source coverage as a secondary signal in production reviews. `Lines 100%` can happen for a route file that the Next.js server loaded, even when no Playwright navigation or UX state covered that route. Use `E2E flow` and `UX states` as the primary route-level gate.
 
 ## Performance Expectations
 
@@ -138,6 +141,8 @@ Before relying on Covra in CI:
 - `npx covra doctor --post-run` passes
 - `npx covra report --check` passes
 - `npx covra routes` shows the expected route files
+- important routes show `E2E flow covered`
+- intentionally untested routes are reviewed as `missing` or excluded from the coverage scope
 - confidence is `100%`
 - included files are intentional
 - `all: true` is enabled

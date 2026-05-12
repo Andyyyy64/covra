@@ -50,6 +50,7 @@ The fixture:
 - writes raw browser artifacts after each test
 - tolerates pages that close before coverage can stop
 - records optional UX state marks from `covraMark()`
+- records top-level navigations and API requests for E2E flow coverage
 
 Firefox and WebKit tests may still run in your suite, but Covra v0.2.1 does not collect coverage from them.
 
@@ -107,6 +108,9 @@ Supported in v0.2.1:
 - `app/**/page.tsx`
 - `app/**/layout.tsx`
 - `app/**/route.ts`
+- `src/app/**/page.tsx`
+- `src/app/**/layout.tsx`
+- `src/app/**/route.ts`
 - server-rendered code on the Node runtime
 - browser-side client component execution
 
@@ -119,6 +123,8 @@ Supported in v0.2.1:
 - `pages/**/*.tsx`
 - `getServerSideProps`
 - `pages/api/**/*.ts`
+- `src/pages/**/*.tsx`
+- `src/pages/api/**/*.ts`
 - browser-side page behavior after hydration
 
 Pages Router support is verified by Covra's local release fixture.

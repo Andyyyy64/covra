@@ -44,6 +44,19 @@ Coverage
 
 Confidence starts at 100 and drops when diagnostics contain warnings or errors. A production CI gate should aim for 100% confidence. If confidence is lower, inspect diagnostics before trusting the percentage.
 
+Confidence is not the same thing as UX coverage. `100%` confidence means the artifacts, source maps, and report generation were clean. The route dashboard can still show missing E2E flows.
+
+Example:
+
+```text
+Route Coverage
+Route              Kind          E2E flow     Lines              Branches           Runtime                UX states  File
+/                  app-page      covered      100.0% (12/12)    100.0% (0/0)       browser, server        2          app/page.tsx
+/dashboard         app-page      missing      100.0% (18/18)    100.0% (0/0)       server, merged         0          app/dashboard/page.tsx
+```
+
+In this case the dashboard is working correctly. The source file was mapped, but no Playwright user flow visited or marked `/dashboard`.
+
 ## `doctor`
 
 `covra doctor` checks:
@@ -97,7 +110,7 @@ covraMark(testInfo, { route: '/settings', state: 'validation.error' })
 covraMark(testInfo, { route: '/settings', state: 'permission.denied' })
 ```
 
-The route dashboard shows these states next to branch coverage. This gives reviewers a more useful signal than raw line coverage alone.
+The route dashboard shows these states next to `E2E flow`, runtime, and source coverage. This gives reviewers a more useful signal than raw line coverage alone.
 
 ## Common Failures
 
@@ -164,9 +177,18 @@ It prints how many source files matched include/exclude.
 
 ### Coverage looks too high
 
-The most common cause is `all: false` or overly narrow include globs. Keep `all: true` in CI so unexecuted files are reported as `0%`.
+First check whether you are looking at source coverage or E2E flow coverage.
+
+Source `Lines`, `Statements`, `Functions`, and `Branches` are Istanbul-compatible metrics. They are useful, but Next.js server coverage can mark route files as covered when modules are loaded or rendered by the framework. That does not always mean a Playwright user journey intentionally visited the route.
+
+Use `npx covra routes` and inspect `E2E flow`:
+
+- `covered`: a top-level navigation, API request, or explicit UX mark was observed
+- `missing`: no user flow observation was recorded for that route
 
 Also check whether the route was visited only in a happy path. High line coverage does not prove modal, error, empty, loading, permission, or validation states were covered. Use `covraMark()` and inspect route branch coverage.
+
+If unvisited files are absent entirely, the most common cause is `all: false` or overly narrow include globs. Keep `all: true` in CI so unexecuted files are reported as `0%`.
 
 ### Coverage looks too low
 
