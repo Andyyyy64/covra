@@ -30,6 +30,7 @@ Reports:
 - HTML
 - JSON summary
 - text summary
+- route-first E2E UX dashboard
 
 CI:
 
@@ -105,9 +106,11 @@ COVRA=1 COVRA_COVERAGE=1 E2E_COVERAGE=1
 
 Browser coverage is written per test artifact. Server coverage is suite-level because a single Next.js server can be shared by multiple Playwright workers.
 
-This means Covra v0.2 can answer:
+This means Covra v0.2.1 can answer:
 
 - which files were covered by the E2E suite
+- which route files were covered by the E2E suite
+- which explicit UX states were marked by tests
 - whether coverage came from browser, server, merged, or empty coverage
 
 It does not claim exact per-test server attribution.
@@ -134,7 +137,9 @@ Before relying on Covra in CI:
 - coverage build uses `next build --webpack`
 - `npx covra doctor --post-run` passes
 - `npx covra report --check` passes
+- `npx covra routes` shows the expected route files
 - confidence is `100%`
 - included files are intentional
 - `all: true` is enabled
+- important modal/error/empty/loading states are marked with `covraMark()`
 - raw artifacts are not published publicly

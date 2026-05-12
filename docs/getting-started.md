@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide sets up Covra for a production-style Next.js + Playwright project.
+This guide sets up Covra for a production-style Next.js + Playwright project and produces a route-first E2E UX coverage dashboard.
 
 ## Requirements
 
@@ -93,6 +93,7 @@ export const test = base.extend({
   ...covraFixture(),
 })
 
+export { covraMark } from 'covra/playwright'
 export { expect }
 ```
 
@@ -103,6 +104,21 @@ import { test, expect } from './covra.fixture'
 ```
 
 The fixture starts JavaScript coverage for Chromium pages and writes raw browser V8 artifacts under `.covra/raw/browser`.
+
+To make the UX dashboard more expressive, mark user-visible states inside tests:
+
+```ts
+import { test, expect, covraMark } from './covra.fixture'
+
+test('checkout shows validation errors', async ({ page }, testInfo) => {
+  covraMark(testInfo, { route: '/checkout', state: 'validation.error' })
+  await page.goto('/checkout')
+  await page.getByRole('button', { name: 'Pay' }).click()
+  await expect(page.getByText('Card number is required')).toBeVisible()
+})
+```
+
+State marks are optional. Without them, Covra still reports route, runtime, line, and branch coverage. With them, the dashboard can show which product states were intentionally exercised.
 
 ## 4. Run the Next.js Server Through Covra
 
@@ -152,12 +168,19 @@ Outputs:
 
 - `.covra/raw/browser`: raw browser V8 artifacts
 - `.covra/raw/server`: raw server V8 artifacts
+- `coverage/covra/index.html`: route-first E2E UX dashboard
+- `coverage/covra/route-coverage.json`: dashboard data
 - `coverage/covra/coverage-final.json`: Istanbul coverage map
 - `coverage/covra/lcov.info`: LCOV
-- `coverage/covra/index.html`: HTML report
 - `coverage/covra/covra-meta.json`: runtime/source-map metadata used by `explain`
 
-## 6. Explain a File
+## 6. Inspect Routes and Files
+
+```bash
+npx covra routes
+```
+
+This prints route-level coverage for App Router pages, Pages Router pages, route handlers, and API routes.
 
 ```bash
 npx covra explain app/dashboard/page.tsx
@@ -169,6 +192,8 @@ This shows:
 - whether it was covered by browser, server, merged, or empty coverage
 - source-map status
 - generated bundle sources that mapped to the file
+- route mapping
+- observed UX states
 - uncovered lines
 
 ## 7. Add CI

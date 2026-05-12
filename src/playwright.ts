@@ -3,11 +3,27 @@ import { writeBrowserCoverageArtifact } from './artifacts.js'
 import { loadCovraConfig } from './config.js'
 import type { BrowserContext, Page, TestInfo } from '@playwright/test'
 
+export type CovraUxMark = {
+  route?: string
+  state: string
+  label?: string
+}
+
+const covraUxAnnotationType = 'covra:ux'
+
 export type CovraPlaywrightFixtureOptions = {
   rawDir?: string
   cwd?: string
   config?: string
   enabled?: boolean
+}
+
+export function covraMark(testInfo: Pick<TestInfo, 'annotations'>, mark: CovraUxMark | string): void {
+  const normalized = typeof mark === 'string' ? { state: mark } : mark
+  testInfo.annotations.push({
+    type: covraUxAnnotationType,
+    description: JSON.stringify(normalized),
+  })
 }
 
 export function covraFixture(options: CovraPlaywrightFixtureOptions = {}) {
@@ -88,5 +104,11 @@ function toArtifactTestInfo(testInfo: TestInfo): BrowserCoverageArtifact['test']
     workerIndex: testInfo.workerIndex,
     retry: testInfo.retry,
     status: testInfo.status,
+    annotations: testInfo.annotations
+      .filter((annotation) => annotation.type === covraUxAnnotationType)
+      .map((annotation) => ({
+        type: annotation.type,
+        description: annotation.description,
+      })),
   }
 }

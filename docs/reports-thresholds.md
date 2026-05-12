@@ -1,6 +1,6 @@
 # Reports, Thresholds, and Merge
 
-Covra writes Istanbul-compatible coverage artifacts so existing CI and reporting tools can consume the result.
+Covra writes a route-first E2E UX dashboard and Istanbul-compatible coverage artifacts so existing CI and reporting tools can consume the result.
 
 ## Report Files
 
@@ -15,12 +15,29 @@ Default files:
 ```text
 coverage/covra/coverage-final.json
 coverage/covra/coverage-summary.json
+coverage/covra/route-coverage.json
 coverage/covra/lcov.info
 coverage/covra/index.html
+coverage/covra/dashboard.html
 coverage/covra/covra-meta.json
 ```
 
-`covra-meta.json` is Covra-specific metadata used by `covra explain`. It records runtime attribution, generated URLs, and source-map status.
+`index.html` and `dashboard.html` are Covra's E2E UX dashboard. The Istanbul-compatible source-level report remains available through generated source pages and LCOV output.
+
+`route-coverage.json` contains the route dashboard model. `covra-meta.json` is Covra-specific metadata used by `covra explain`. It records runtime attribution, generated URLs, source-map status, route mapping, tests, and explicit UX states.
+
+## Route-first Dashboard
+
+The dashboard is the primary human-facing report. It groups coverage by:
+
+- App Router page/layout/route files
+- Pages Router page/API/special files
+- route path
+- browser/server/merged/empty runtime
+- line and branch coverage
+- explicit UX state marks from `covraMark()`
+
+Source-level Istanbul metrics are still present, but they are supporting detail rather than the top-level UX.
 
 ## Built-in Reports
 

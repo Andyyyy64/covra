@@ -37,6 +37,7 @@ export const test = base.extend({
   ...covraFixture(),
 })
 
+export { covraMark } from 'covra/playwright'
 export { expect }
 ```
 
@@ -48,8 +49,9 @@ The fixture:
 - tracks pages created in the browser context
 - writes raw browser artifacts after each test
 - tolerates pages that close before coverage can stop
+- records optional UX state marks from `covraMark()`
 
-Firefox and WebKit tests may still run in your suite, but Covra v0.2 does not collect coverage from them.
+Firefox and WebKit tests may still run in your suite, but Covra v0.2.1 does not collect coverage from them.
 
 ## Server Wrapper
 
@@ -100,7 +102,7 @@ export default defineConfig({
 
 ## App Router Coverage
 
-Supported in v0.2:
+Supported in v0.2.1:
 
 - `app/**/page.tsx`
 - `app/**/layout.tsx`
@@ -112,7 +114,7 @@ Server Components and server-rendered paths are covered through server V8 covera
 
 ## Pages Router Coverage
 
-Supported in v0.2:
+Supported in v0.2.1:
 
 - `pages/**/*.tsx`
 - `getServerSideProps`
@@ -120,6 +122,23 @@ Supported in v0.2:
 - browser-side page behavior after hydration
 
 Pages Router support is verified by Covra's local release fixture.
+
+## UX State Marks
+
+Route coverage is strongest when tests name the user-visible state they exercised:
+
+```ts
+import { test, expect, covraMark } from './covra.fixture'
+
+test('legacy page clicked state', async ({ page }, testInfo) => {
+  covraMark(testInfo, { route: '/legacy', state: 'clicked' })
+  await page.goto('/legacy')
+  await page.getByRole('button', { name: 'Legacy idle' }).click()
+  await expect(page.getByRole('button', { name: 'Legacy clicked' })).toBeVisible()
+})
+```
+
+Use state names that match your product language: `empty`, `error`, `loading`, `modal.open`, `permission.denied`, `validation.error`, `success`, and so on.
 
 ## Source Maps and webpack
 
@@ -129,7 +148,7 @@ Covra needs source maps for generated browser and server bundles. Use a webpack 
 next build --webpack
 ```
 
-Turbopack production browser coverage is not part of the v0.2 support envelope.
+Turbopack production browser coverage is not part of the v0.2.1 support envelope.
 
 ## CommonJS Compatibility
 

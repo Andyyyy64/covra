@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import type { Diagnostic, FileRuntimeInfo, NormalizedCovraConfig } from './types.js'
+import type { Diagnostic, FileRuntimeInfo, NormalizedCovraConfig, RouteRuntimeInfo } from './types.js'
+import { routeInfoForFile } from './routes.js'
 
 export type CovraMetaFile = {
   version: 1
@@ -12,6 +13,15 @@ export type CovraMetaFile = {
     runtimes: string[]
     generatedUrls: string[]
     sourceMapStatus: string
+    tests?: string[]
+    uxStates?: string[]
+    route?: string
+    routeKind?: string
+  }>
+  routes?: Array<{
+    route: string
+    tests: string[]
+    uxStates: string[]
   }>
 }
 
@@ -19,17 +29,30 @@ export async function writeMetaFile(options: {
   config: NormalizedCovraConfig
   diagnostics: Diagnostic[]
   fileInfo: Map<string, FileRuntimeInfo>
+  routeInfo?: Map<string, RouteRuntimeInfo>
 }): Promise<string> {
   const meta: CovraMetaFile = {
     version: 1,
     createdAt: new Date().toISOString(),
     confidence: calculateConfidence(options.diagnostics),
     diagnostics: options.diagnostics,
-    files: [...options.fileInfo.values()].map((file) => ({
-      file: file.file,
-      runtimes: [...file.runtimes],
-      generatedUrls: [...file.generatedUrls],
-      sourceMapStatus: file.sourceMapStatus,
+    files: [...options.fileInfo.values()].map((file) => {
+      const routeInfo = routeInfoForFile(options.config.rootDir, file.file)
+      return {
+        file: file.file,
+        runtimes: [...file.runtimes],
+        generatedUrls: [...file.generatedUrls],
+        sourceMapStatus: file.sourceMapStatus,
+        tests: [...file.tests],
+        uxStates: [...file.uxStates],
+        route: routeInfo?.route,
+        routeKind: routeInfo?.kind,
+      }
+    }),
+    routes: [...(options.routeInfo?.values() ?? [])].map((route) => ({
+      route: route.route,
+      tests: [...route.tests],
+      uxStates: [...route.uxStates],
     })),
   }
 

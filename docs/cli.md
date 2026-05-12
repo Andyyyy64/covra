@@ -95,7 +95,7 @@ Use it inside Playwright `webServer.command`.
 
 ## `covra report`
 
-Converts raw browser/server artifacts into Istanbul-compatible reports.
+Converts raw browser/server artifacts into the Covra E2E UX dashboard and Istanbul-compatible reports.
 
 ```bash
 npx covra report
@@ -107,6 +107,14 @@ Options:
 - `--check`: evaluate thresholds after writing reports
 
 Outputs are written to `outputDir`, which defaults to `coverage/covra`.
+
+Main outputs:
+
+- `index.html`: Covra route-first UX dashboard
+- `dashboard.html`: same dashboard, explicit filename
+- `route-coverage.json`: route dashboard data
+- `coverage-final.json`: Istanbul-compatible source coverage
+- `lcov.info`: LCOV for external services
 
 ## `covra report --check`
 
@@ -132,6 +140,23 @@ npx covra check coverage/covra/coverage-final.json
 
 If `coverageFile` is omitted, Covra uses `coverage/covra/coverage-final.json`.
 
+## `covra routes`
+
+Prints route/page-level coverage from the latest report.
+
+```bash
+npx covra routes
+```
+
+This is the fastest way to inspect E2E UX coverage in the terminal. It shows:
+
+- route path
+- route kind
+- line and branch coverage for that route file
+- browser/server runtime attribution
+- number of explicit UX states
+- source file
+
 ## `covra explain <file>`
 
 Explains one file in the latest report.
@@ -144,6 +169,8 @@ It prints:
 
 - line, statement, function, and branch coverage
 - runtime attribution
+- route mapping
+- explicit UX states
 - source-map status
 - generated bundle sources
 - uncovered lines

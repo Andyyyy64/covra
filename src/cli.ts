@@ -8,6 +8,7 @@ import {
   explainCommand,
   initCommand,
   reportCommand,
+  routesCommand,
   runCommand,
   startServerCommand,
 } from './commands.js'
@@ -65,6 +66,13 @@ cli
   .option('-c, --config <file>', 'Config file')
   .action(async (file, options) => {
     process.exitCode = await explainCommand(file, { config: options.config })
+  })
+
+cli
+  .command('routes', 'Show route/page-level coverage from the latest Covra report')
+  .option('-c, --config <file>', 'Config file')
+  .action(async (options) => {
+    process.exitCode = await routesCommand({ config: options.config })
   })
 
 cli

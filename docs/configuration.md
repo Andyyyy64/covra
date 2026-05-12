@@ -90,7 +90,7 @@ Supported values:
 - `'next'`
 - `'generic'`
 
-The v0.2 production envelope is Next.js. Generic mode is available for experimentation but is not release-gate supported.
+The v0.2.1 production envelope is Next.js. Generic mode is available for experimentation but is not release-gate supported.
 
 ## `include` and `exclude`
 

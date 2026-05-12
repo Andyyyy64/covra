@@ -37,6 +37,8 @@ npm run check:release
 - `covra report`
 - `covra check`
 - `covra explain`
+- `covra routes`
+- E2E UX dashboard generation
 
 The fixture runs Playwright with parallel workers.
 
@@ -63,6 +65,8 @@ The smoke test injects Covra through normal package imports, runs the upstream P
 - `report` passes
 - `check` passes
 - `explain` works for App Router and Pages Router files
+- `routes` works for App Router and Pages Router files
+- `route-coverage.json` and the dashboard are generated
 - coverage confidence is 100%
 
 This test is intentionally networked.

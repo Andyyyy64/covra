@@ -135,6 +135,7 @@ run('node', [playwrightCli, 'test', '--config', 'covra.playwright.config.ts'], {
 run('node', [covraCli, 'doctor', '--post-run', '--config', 'covra.config.mjs'], { cwd: projectRoot })
 run('node', [covraCli, 'report', '--config', 'covra.config.mjs'], { cwd: projectRoot })
 run('node', [covraCli, 'check', '--config', 'covra.config.mjs'], { cwd: projectRoot })
+run('node', [covraCli, 'routes', '--config', 'covra.config.mjs'], { cwd: projectRoot })
 
 const explainApp = execFileSync('node', [covraCli, 'explain', 'app/page.tsx', '--config', 'covra.config.mjs'], {
   cwd: projectRoot,
@@ -150,6 +151,8 @@ assert(explainPages.includes('Source map  resolved'), 'expected pages/home/index
 
 const coverage = JSON.parse(readFileSync(path.join(projectRoot, 'coverage/covra/coverage-final.json'), 'utf8'))
 const meta = JSON.parse(readFileSync(path.join(projectRoot, 'coverage/covra/covra-meta.json'), 'utf8'))
+const routeCoverage = JSON.parse(readFileSync(path.join(projectRoot, 'coverage/covra/route-coverage.json'), 'utf8'))
+const dashboard = readFileSync(path.join(projectRoot, 'coverage/covra/index.html'), 'utf8')
 
 for (const relativeFile of ['app/page.tsx', 'app/about/page.tsx', 'pages/home/index.tsx', 'pages/home/about.tsx']) {
   const absoluteFile = path.join(projectRoot, relativeFile)
@@ -160,5 +163,14 @@ for (const relativeFile of ['app/page.tsx', 'app/about/page.tsx', 'pages/home/in
 }
 
 assert(meta.confidence === 100, `expected external smoke confidence 100, got ${meta.confidence}`)
+assert(dashboard.includes('E2E UX Coverage'), 'expected external smoke dashboard to be the main report')
+assert(
+  routeCoverage.routes.some((route) => route.route === '/' && route.kind === 'app-page'),
+  'expected external smoke route coverage to include App Router home page',
+)
+assert(
+  routeCoverage.routes.some((route) => route.route === '/home' && route.kind === 'pages-page'),
+  'expected external smoke route coverage to include Pages Router home page',
+)
 
-console.log('✓ External smoke verified: vercel/next.js examples/with-playwright + Covra app/pages router coverage')
+console.log('✓ External smoke verified: vercel/next.js examples/with-playwright + Covra E2E UX route dashboard')

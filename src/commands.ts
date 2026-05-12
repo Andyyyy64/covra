@@ -14,6 +14,8 @@ import { readMetaFile, writeMetaFile } from './meta.js'
 import type { Diagnostic, NormalizedCovraConfig } from './types.js'
 import { browserRawDir, serverRawDir } from './artifacts.js'
 import { absoluteFromRoot, normalizeCoverageFilePath, relativeToRoot, slash } from './path-utils.js'
+import { routeInfoForFile } from './routes.js'
+import { buildRouteCoverageRows, printRouteCoverageRows, writeUxDashboard } from './route-report.js'
 
 const { createCoverageMap } = istanbulCoverage
 
@@ -25,19 +27,39 @@ export async function reportCommand(options: {
   const config = await loadCovraConfig(options)
   await waitForCoverageArtifacts(config)
   const result = await buildCoverageMap(config)
-  const reportDiagnostics = await writeCoverageReports({
-    config,
-    coverageMap: result.coverageMap,
-  })
-  const diagnostics = [...result.diagnostics, ...reportDiagnostics]
+
+  let diagnostics = [...result.diagnostics]
   await writeMetaFile({
     config,
     diagnostics,
     fileInfo: result.fileInfo,
+    routeInfo: result.routeInfo,
   })
+  const meta = await readMetaFile(config)
+  const routeRows = buildRouteCoverageRows(config, result.coverageMap, meta)
 
   printDiagnostics(diagnostics)
+  printRouteCoverageRows(routeRows)
   printCoverageSummary(config, result.coverageMap, diagnostics)
+
+  const reportDiagnostics = await writeCoverageReports({
+    config,
+    coverageMap: result.coverageMap,
+  })
+  diagnostics = [...diagnostics, ...reportDiagnostics]
+  printDiagnostics(reportDiagnostics)
+
+  await writeMetaFile({
+    config,
+    diagnostics,
+    fileInfo: result.fileInfo,
+    routeInfo: result.routeInfo,
+  })
+  await writeUxDashboard({
+    config,
+    coverageMap: result.coverageMap,
+    meta: await readMetaFile(config),
+  })
 
   if (options.check) {
     const thresholdResult = checkThresholds(config, result.coverageMap)
@@ -206,6 +228,24 @@ export async function explainCommand(file: string, options: { cwd?: string; conf
   console.log('')
   console.log(`Runtime     ${fileMeta?.runtimes.join(', ') || 'unknown'}`)
   console.log(`Source map  ${fileMeta?.sourceMapStatus ?? 'unknown'}`)
+  const routeInfo = routeInfoForFile(config.rootDir, normalized)
+  if (routeInfo) {
+    console.log(`Route       ${routeInfo.route} (${routeInfo.kind})`)
+  }
+
+  if (fileMeta?.uxStates?.length) {
+    console.log(`UX states   ${fileMeta.uxStates.join(', ')}`)
+  }
+
+  if (fileMeta?.tests?.length) {
+    console.log(`Tests       ${fileMeta.tests.length}`)
+    for (const test of fileMeta.tests.slice(0, 6)) {
+      console.log(pc.dim(`  ${test}`))
+    }
+    if (fileMeta.tests.length > 6) {
+      console.log(pc.dim(`  ...and ${fileMeta.tests.length - 6} more`))
+    }
+  }
 
   if (fileMeta?.generatedUrls.length) {
     console.log('')
@@ -227,6 +267,30 @@ export async function explainCommand(file: string, options: { cwd?: string; conf
   return 0
 }
 
+export async function routesCommand(options: { cwd?: string; config?: string } = {}): Promise<number> {
+  const config = await loadCovraConfig(options)
+  const coverageFile = path.join(config.outputDir, 'coverage-final.json')
+  const meta = await readMetaFile(config)
+
+  if (!existsSync(coverageFile)) {
+    console.error(pc.red(`Coverage report not found: ${coverageFile}`))
+    console.error(pc.dim('Run `covra report` first.'))
+    return 1
+  }
+
+  const data = JSON.parse(await fs.readFile(coverageFile, 'utf8'))
+  const coverageMap = createCoverageMap(data)
+  const rows = buildRouteCoverageRows(config, coverageMap, meta)
+
+  if (rows.length === 0) {
+    console.log(pc.yellow('No App Router or Pages Router files were found in the coverage report.'))
+    return 0
+  }
+
+  printRouteCoverageRows(rows, Number.POSITIVE_INFINITY)
+  return 0
+}
+
 export async function initCommand(options: { cwd?: string; dryRun?: boolean } = {}): Promise<number> {
   const cwd = path.resolve(options.cwd ?? process.cwd())
   const files = new Map<string, string>([
@@ -236,7 +300,7 @@ export async function initCommand(options: { cwd?: string; dryRun?: boolean } = 
     ],
     [
       'e2e/covra.fixture.ts',
-      `import { test as base, expect } from '@playwright/test'\nimport { covraFixture } from 'covra/playwright'\n\nexport const test = base.extend({\n  ...covraFixture(),\n})\n\nexport { expect }\n`,
+      `import { test as base, expect } from '@playwright/test'\nimport { covraFixture } from 'covra/playwright'\n\nexport const test = base.extend({\n  ...covraFixture(),\n})\n\nexport { covraMark } from 'covra/playwright'\nexport { expect }\n`,
     ],
   ])
 
@@ -346,13 +410,13 @@ function printCoverageSummary(config: NormalizedCovraConfig, coverageMap: any, d
   )
 
   console.log('')
-  console.log(pc.bold('Coverage'))
+  console.log(pc.bold('Source Coverage'))
   console.log(`  Lines       ${formatPct(summary.lines.pct)}`)
   console.log(`  Statements  ${formatPct(summary.statements.pct)}`)
   console.log(`  Functions   ${formatPct(summary.functions.pct)}`)
   console.log(`  Branches    ${formatPct(summary.branches.pct)}`)
   console.log(`  Confidence  ${confidence}%`)
-  console.log(pc.dim(`  Report      ${path.join(config.outputDir, 'index.html')}`))
+  console.log(pc.dim(`  Dashboard   ${path.join(config.outputDir, 'index.html')}`))
 }
 
 function printThresholds(failures: ThresholdFailure[]): void {

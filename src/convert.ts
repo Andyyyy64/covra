@@ -13,6 +13,7 @@ import type {
   NormalizedCovraConfig,
   PlaywrightJSCoverageEntry,
   CoverageRuntime,
+  RouteRuntimeInfo,
 } from './types.js'
 import { browserRawDir, readJsonFile, serverRawDir } from './artifacts.js'
 import {
@@ -24,6 +25,7 @@ import {
   resolveGeneratedFile,
   slash,
 } from './path-utils.js'
+import { routeInfoForFile } from './routes.js'
 
 type CoverageMapLike = ReturnType<typeof createCoverageMap>
 const { createCoverageMap } = istanbulCoverage
@@ -32,6 +34,7 @@ export type BuildCoverageResult = {
   coverageMap: CoverageMapLike
   diagnostics: Diagnostic[]
   fileInfo: Map<string, FileRuntimeInfo>
+  routeInfo: Map<string, RouteRuntimeInfo>
 }
 
 type V8EntryInput = {
@@ -39,14 +42,16 @@ type V8EntryInput = {
   url: string
   source?: string
   functions: PlaywrightJSCoverageEntry['functions']
+  test?: BrowserCoverageArtifact['test']
 }
 
 export async function buildCoverageMap(config: NormalizedCovraConfig): Promise<BuildCoverageResult> {
   const diagnostics: Diagnostic[] = []
   const coverageMap = createCoverageMap({})
   const fileInfo = new Map<string, FileRuntimeInfo>()
+  const routeInfo = new Map<string, RouteRuntimeInfo>()
 
-  await addBrowserCoverage(config, coverageMap, diagnostics, fileInfo)
+  await addBrowserCoverage(config, coverageMap, diagnostics, fileInfo, routeInfo)
   await addServerCoverage(config, coverageMap, diagnostics, fileInfo)
   await addExternalCoverage(config, coverageMap, diagnostics)
 
@@ -60,6 +65,7 @@ export async function buildCoverageMap(config: NormalizedCovraConfig): Promise<B
     coverageMap,
     diagnostics,
     fileInfo,
+    routeInfo,
   }
 }
 
@@ -68,6 +74,7 @@ async function addBrowserCoverage(
   map: CoverageMapLike,
   diagnostics: Diagnostic[],
   fileInfo: Map<string, FileRuntimeInfo>,
+  routeInfo: Map<string, RouteRuntimeInfo>,
 ): Promise<void> {
   if (!config.collect.browser.enabled) return
 
@@ -92,6 +99,7 @@ async function addBrowserCoverage(
   for (const file of files) {
     const artifact = await safeReadJson<BrowserCoverageArtifact>(file, diagnostics)
     if (!artifact || artifact.kind !== 'browser-v8') continue
+    markRouteRuntime(routeInfo, artifact.test)
 
     for (const entry of artifact.entries) {
       mappedEntries += await convertEntry(config, map, diagnostics, fileInfo, {
@@ -99,6 +107,7 @@ async function addBrowserCoverage(
         url: entry.url,
         source: entry.source,
         functions: entry.functions,
+        test: artifact.test,
       })
     }
   }
@@ -212,7 +221,7 @@ async function convertEntry(
     await converter.load()
     converter.applyCoverage(entry.functions)
     const data = converter.toIstanbul()
-    const normalized = normalizeIstanbulData(config, data, diagnostics, fileInfo, entry.runtime, entry.url)
+    const normalized = normalizeIstanbulData(config, data, diagnostics, fileInfo, entry.runtime, entry.url, entry.test)
     map.merge(normalized)
     return Object.keys(normalized).length
   } catch (error) {
@@ -262,6 +271,7 @@ function normalizeIstanbulData(
   fileInfo: Map<string, FileRuntimeInfo>,
   runtime: CoverageRuntime,
   generatedUrl: string,
+  test?: BrowserCoverageArtifact['test'],
 ): Record<string, unknown> {
   const normalized: Record<string, unknown> = {}
 
@@ -273,7 +283,7 @@ function normalizeIstanbulData(
     const mutable = toMutableCoverage(value)
     mutable.path = normalizedFile
     normalized[normalizedFile] = mutable
-    markFileRuntime(fileInfo, normalizedFile, runtime, generatedUrl, 'resolved')
+    markFileRuntime(config, fileInfo, normalizedFile, runtime, generatedUrl, 'resolved', test)
   }
 
   if (Object.keys(data).length > 0 && Object.keys(normalized).length === 0) {
@@ -315,7 +325,7 @@ function normalizeMapFiles(
     normalizedMap.merge({ [normalizedFile]: mutable })
 
     if (normalizedFile !== file) changed = true
-    markFileRuntime(fileInfo, normalizedFile, 'merged', file, 'unknown')
+    markFileRuntime(config, fileInfo, normalizedFile, 'merged', file, 'unknown')
   }
 
   if (!changed) return
@@ -360,7 +370,7 @@ async function addEmptyCoverageForUncoveredFiles(
         },
       ])
       map.merge(converter.toIstanbul())
-      markFileRuntime(fileInfo, absolute, 'empty', absolute, 'unknown')
+      markFileRuntime(config, fileInfo, absolute, 'empty', absolute, 'unknown')
     } catch (error) {
       diagnostics.push({
         level: 'warn',
@@ -375,11 +385,13 @@ async function addEmptyCoverageForUncoveredFiles(
 }
 
 function markFileRuntime(
+  config: NormalizedCovraConfig,
   fileInfo: Map<string, FileRuntimeInfo>,
   file: string,
   runtime: CoverageRuntime,
   generatedUrl: string,
   sourceMapStatus: FileRuntimeInfo['sourceMapStatus'],
+  test?: BrowserCoverageArtifact['test'],
 ): void {
   const existing =
     fileInfo.get(file) ??
@@ -388,12 +400,70 @@ function markFileRuntime(
       runtimes: new Set(),
       generatedUrls: new Set(),
       sourceMapStatus,
+      tests: new Set(),
+      uxStates: new Set(),
     } satisfies FileRuntimeInfo)
 
   existing.runtimes.add(runtime)
   existing.generatedUrls.add(generatedUrl)
   if (existing.sourceMapStatus === 'unknown') existing.sourceMapStatus = sourceMapStatus
+
+  if (test?.title) {
+    existing.tests.add(test.title)
+  }
+
+  for (const state of uxStatesForFile(config.rootDir, file, test)) {
+    existing.uxStates.add(state)
+  }
+
   fileInfo.set(file, existing)
+}
+
+function uxStatesForFile(rootDir: string, file: string, test?: BrowserCoverageArtifact['test']): string[] {
+  const route = routeInfoForFile(rootDir, file)?.route
+  const states: string[] = []
+
+  for (const annotation of test?.annotations ?? []) {
+    if (annotation.type !== 'covra:ux' || !annotation.description) continue
+
+    try {
+      const mark = JSON.parse(annotation.description) as { route?: string; state?: string; label?: string }
+      if (!mark.state) continue
+      if (mark.route && route && mark.route !== route) continue
+      if (mark.route && !route) continue
+      states.push(mark.label ? `${mark.state}: ${mark.label}` : mark.state)
+    } catch {
+      // Ignore malformed user annotations. They should not break coverage generation.
+    }
+  }
+
+  return states
+}
+
+function markRouteRuntime(routeInfo: Map<string, RouteRuntimeInfo>, test?: BrowserCoverageArtifact['test']): void {
+  const title = test?.title
+
+  for (const annotation of test?.annotations ?? []) {
+    if (annotation.type !== 'covra:ux' || !annotation.description) continue
+
+    try {
+      const mark = JSON.parse(annotation.description) as { route?: string; state?: string; label?: string }
+      if (!mark.route || !mark.state) continue
+      const existing =
+        routeInfo.get(mark.route) ??
+        ({
+          route: mark.route,
+          tests: new Set(),
+          uxStates: new Set(),
+        } satisfies RouteRuntimeInfo)
+
+      if (title) existing.tests.add(title)
+      existing.uxStates.add(mark.label ? `${mark.state}: ${mark.label}` : mark.state)
+      routeInfo.set(mark.route, existing)
+    } catch {
+      // Ignore malformed user annotations. They should not break coverage generation.
+    }
+  }
 }
 
 function matchesCoverageTarget(config: NormalizedCovraConfig, file: string): boolean {

@@ -7,4 +7,5 @@ export const test = base.extend({
   ...covraFixture({ cwd: fixtureRoot }),
 })
 
+export { covraMark } from '../../../dist/playwright.js'
 export { expect }

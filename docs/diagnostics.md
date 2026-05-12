@@ -17,6 +17,12 @@ npx covra doctor --post-run
 npx covra report --check
 ```
 
+For route-level coverage:
+
+```bash
+npx covra routes
+```
+
 For a suspicious file:
 
 ```bash
@@ -80,6 +86,18 @@ Runtime values:
 - `server`: covered by Node server V8 coverage
 - `merged`: merged from another Istanbul coverage file
 - `empty`: included through `all: true` but never executed
+
+## UX State Marks
+
+Use `covraMark()` in Playwright tests when a route has meaningful user-visible states:
+
+```ts
+covraMark(testInfo, { route: '/settings', state: 'modal.open' })
+covraMark(testInfo, { route: '/settings', state: 'validation.error' })
+covraMark(testInfo, { route: '/settings', state: 'permission.denied' })
+```
+
+The route dashboard shows these states next to branch coverage. This gives reviewers a more useful signal than raw line coverage alone.
 
 ## Common Failures
 
@@ -147,6 +165,8 @@ It prints how many source files matched include/exclude.
 ### Coverage looks too high
 
 The most common cause is `all: false` or overly narrow include globs. Keep `all: true` in CI so unexecuted files are reported as `0%`.
+
+Also check whether the route was visited only in a happy path. High line coverage does not prove modal, error, empty, loading, permission, or validation states were covered. Use `covraMark()` and inspect route branch coverage.
 
 ### Coverage looks too low
 

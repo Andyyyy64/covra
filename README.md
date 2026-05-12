@@ -1,20 +1,20 @@
 # Covra
 
-Runtime coverage for Playwright-powered Next.js apps.
+E2E UX coverage dashboard for Playwright-powered Next.js apps.
 
-Covra collects browser and Next.js server runtime coverage while Playwright E2E tests run, maps bundled JavaScript back to your source files, writes Istanbul-compatible reports, and gives you diagnostics when the numbers look suspicious.
+Covra shows what real Playwright user flows cover by route. It collects browser and Next.js server runtime coverage, maps bundled JavaScript back to source files, writes a route-first UX dashboard, keeps Istanbul-compatible artifacts, and gives you diagnostics when the numbers look suspicious.
 
 It is intentionally not a Vitest plugin. Vitest, Jest, c8, nyc, Codecov, and Sonar can consume or merge with Covra through standard Istanbul artifacts.
 
 ## Why Covra
 
-Unit coverage tells you what isolated tests execute. E2E coverage tells you what real user flows execute.
+Unit coverage tells you what isolated tests execute. E2E coverage should tell you what product routes, states, and branches real user flows execute.
 
-Next.js makes that hard because meaningful code runs in more than one place: hydrated client components, server rendering, App Router route handlers, Pages Router API routes, and `getServerSideProps`. Covra treats those as one runtime coverage problem and makes the result explainable.
+Next.js makes that hard because meaningful code runs in more than one place: hydrated client components, server rendering, App Router route handlers, Pages Router API routes, and `getServerSideProps`. Covra treats those as one UX coverage problem and makes the result explainable by path.
 
 ## Production Envelope
 
-Covra v0.2 is production-ready inside this explicit envelope:
+Covra v0.2.1 is production-ready inside this explicit envelope:
 
 - Next.js on the Node runtime
 - App Router pages, layouts, and route handlers
@@ -22,10 +22,13 @@ Covra v0.2 is production-ready inside this explicit envelope:
 - Playwright Chromium E2E coverage
 - webpack production builds for stable source maps
 - TypeScript, TSX, JavaScript, and JSX source files
-- HTML, LCOV, JSON, JSON summary, and text reports
+- route-first E2E UX dashboard as the main HTML report
+- route coverage JSON for custom dashboards
+- HTML, LCOV, JSON, JSON summary, and text reports for source-level consumers
+- explicit UX state marks from Playwright tests through `covraMark()`
 - threshold checks without a Vitest dependency
 - optional merge of any Istanbul `coverage-final.json`
-- `doctor`, `doctor --post-run`, `explain`, `run`, `report`, `check`, `clean`, `init`, and `start-server`
+- `routes`, `doctor`, `doctor --post-run`, `explain`, `run`, `report`, `check`, `clean`, `init`, and `start-server`
 - ESM and CommonJS exports for Playwright's TypeScript loader
 
 Not supported yet:
@@ -74,6 +77,7 @@ export const test = base.extend({
   ...covraFixture(),
 })
 
+export { covraMark } from 'covra/playwright'
 export { expect }
 ```
 
@@ -81,6 +85,19 @@ Then import from that fixture in E2E specs:
 
 ```ts
 import { test, expect } from './covra.fixture'
+```
+
+Optionally mark user-visible states in tests so the dashboard can show more than raw code execution:
+
+```ts
+import { test, expect, covraMark } from './covra.fixture'
+
+test('user can open settings modal', async ({ page }, testInfo) => {
+  covraMark(testInfo, { route: '/settings', state: 'modal.open' })
+  await page.goto('/settings')
+  await page.getByRole('button', { name: 'Settings' }).click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+})
 ```
 
 Enable coverage source maps only during coverage runs:
@@ -129,6 +146,23 @@ npx covra clean
 npx playwright test --project=chromium
 npx covra doctor --post-run
 npx covra report --check
+```
+
+The main report is the route-first dashboard:
+
+```text
+coverage/covra/index.html
+coverage/covra/route-coverage.json
+```
+
+CLI output also prints route coverage:
+
+```text
+Route Coverage
+Route              Kind          Lines              Branches           Runtime                UX states  File
+/                  app-page      100.0% (12/12)    100.0% (0/0)       server, merged         2          app/page.tsx
+/legacy            pages-page    100.0% (34/34)    100.0% (2/2)       browser, server        2          pages/legacy.tsx
+/api/legacy        pages-api     100.0% (8/8)      100.0% (0/0)       server, merged         1          pages/api/legacy.ts
 ```
 
 Detailed setup is in [Getting Started](docs/getting-started.md).

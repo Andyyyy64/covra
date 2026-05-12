@@ -138,6 +138,10 @@ export type BrowserCoverageArtifact = {
     workerIndex?: number
     retry?: number
     status?: string
+    annotations?: Array<{
+      type: string
+      description?: string
+    }>
   }
   entries: PlaywrightJSCoverageEntry[]
 }
@@ -158,4 +162,12 @@ export type FileRuntimeInfo = {
   runtimes: Set<CoverageRuntime>
   generatedUrls: Set<string>
   sourceMapStatus: 'resolved' | 'missing' | 'unknown'
+  tests: Set<string>
+  uxStates: Set<string>
+}
+
+export type RouteRuntimeInfo = {
+  route: string
+  tests: Set<string>
+  uxStates: Set<string>
 }

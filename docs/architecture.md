@@ -1,6 +1,6 @@
 # Architecture
 
-Covra is a small orchestration layer around runtime coverage.
+Covra is a small orchestration layer around runtime coverage and a route-first E2E UX dashboard.
 
 ```text
 Playwright Chromium tests
@@ -14,7 +14,8 @@ Covra report
   -> V8 to Istanbul conversion
   -> merge existing Istanbul artifacts
   -> add unexecuted files as 0%
-  -> reports, metadata, thresholds
+  -> route model
+  -> UX dashboard, metadata, thresholds
 ```
 
 ## Packages and Public Entrypoints
@@ -119,6 +120,8 @@ This powers `covra explain` with:
 - runtime attribution
 - generated source URLs
 - source-map status
+- route mapping
+- explicit UX states
 
 Runtime attribution is file-level:
 
@@ -126,6 +129,18 @@ Runtime attribution is file-level:
 - `server`
 - `merged`
 - `empty`
+
+## Route Dashboard
+
+Covra maps source files to route paths:
+
+- `app/**/page.tsx` -> App Router page route
+- `app/**/layout.tsx` -> App Router layout route
+- `app/**/route.ts` -> App Router route handler
+- `pages/**/*.tsx` -> Pages Router page route
+- `pages/api/**/*.ts` -> Pages Router API route
+
+`coverage/covra/index.html` is the route-first dashboard. It intentionally places route, branch, runtime, and UX state information above low-level source metrics.
 
 ## Confidence
 
