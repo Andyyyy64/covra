@@ -1,0 +1,13 @@
+node_modules
+dist
+coverage
+.covra
+test-results
+.next
+fixtures/**/.next
+fixtures/**/next-env.d.ts
+fixtures/**/node_modules
+fixtures/**/package-lock.json
+fixtures/**/test-results
+.DS_Store
+*.log

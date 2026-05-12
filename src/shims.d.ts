@@ -1,0 +1,5 @@
+declare module 'istanbul-lib-coverage'
+declare module 'istanbul-lib-report'
+declare module 'istanbul-reports'
+declare module 'v8-to-istanbul'
+declare module 'micromatch'

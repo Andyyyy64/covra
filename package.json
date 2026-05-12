@@ -1,0 +1,84 @@
+{
+  "name": "covra",
+  "version": "0.1.0",
+  "description": "Runtime coverage for Playwright-powered Next.js apps.",
+  "type": "module",
+  "bin": {
+    "covra": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./playwright": {
+      "types": "./dist/playwright.d.ts",
+      "import": "./dist/playwright.js"
+    },
+    "./next": {
+      "types": "./dist/next.d.ts",
+      "import": "./dist/next.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:fixture:next": "npm run build && npx playwright test --config fixtures/next-app-router/playwright.config.ts && node dist/cli.js report --config fixtures/next-app-router/covra.config.ts && node dist/cli.js check --config fixtures/next-app-router/covra.config.ts && node dist/cli.js explain src/ClientCounter.tsx --config fixtures/next-app-router/covra.config.ts && node scripts/verify-next-fixture.mjs",
+    "check": "npm run typecheck && npm run test && npm run build",
+    "check:release": "npm run typecheck && npm run test && npm run test:fixture:next && npm audit && npm pack --dry-run",
+    "prepack": "npm run build"
+  },
+  "keywords": [
+    "coverage",
+    "playwright",
+    "nextjs",
+    "e2e",
+    "istanbul",
+    "v8"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "cac": "^6.7.14",
+    "fast-glob": "^3.3.3",
+    "istanbul-lib-coverage": "^3.2.2",
+    "istanbul-lib-report": "^3.0.1",
+    "istanbul-reports": "^3.2.0",
+    "jiti": "^2.4.2",
+    "micromatch": "^4.0.8",
+    "picocolors": "^1.1.1",
+    "v8-to-istanbul": "^9.3.0"
+  },
+  "peerDependencies": {
+    "@playwright/test": ">=1.40.0"
+  },
+  "peerDependenciesMeta": {
+    "@playwright/test": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "@types/node": "^22.10.2",
+    "@types/react": "19.2.14",
+    "next": "^16.2.6",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.6"
+  },
+  "overrides": {
+    "postcss": "^8.5.14"
+  }
+}
