@@ -2,27 +2,44 @@
 
 Runtime coverage for Playwright-powered Next.js apps.
 
-Covra collects browser and Next.js server runtime coverage while Playwright E2E tests run, maps generated JavaScript back to source files, writes Istanbul-compatible reports, and gives you `doctor` / `explain` commands when the numbers look suspicious.
+Covra collects browser and Next.js server runtime coverage while Playwright E2E tests run, maps bundled JavaScript back to your source files, writes Istanbul-compatible reports, and gives you diagnostics when the numbers look suspicious.
+
+It is intentionally not a Vitest plugin. Vitest, Jest, c8, nyc, Codecov, and Sonar can consume or merge with Covra through standard Istanbul artifacts.
+
+## Why Covra
+
+Unit coverage tells you what isolated tests execute. E2E coverage tells you what real user flows execute.
+
+Next.js makes that hard because meaningful code runs in more than one place: hydrated client components, server rendering, App Router route handlers, Pages Router API routes, and `getServerSideProps`. Covra treats those as one runtime coverage problem and makes the result explainable.
 
 ## Production Envelope
 
-Covra is production-ready inside this explicit support envelope:
+Covra v0.2 is production-ready inside this explicit envelope:
 
-- Next.js-first coverage config
-- Playwright Chromium browser coverage fixture
-- Next.js `withCovra()` config helper
-- `NODE_V8_COVERAGE` server wrapper
-- a small server flush agent so Playwright teardown does not lose server coverage
-- V8 to Istanbul conversion
-- uncovered source files included as `0%`
-- HTML, LCOV, JSON, and text reports
-- Vitest-like threshold checks without a Vitest dependency
+- Next.js on the Node runtime
+- App Router pages, layouts, and route handlers
+- Pages Router pages, `getServerSideProps`, and API routes
+- Playwright Chromium E2E coverage
+- webpack production builds for stable source maps
+- TypeScript, TSX, JavaScript, and JSX source files
+- HTML, LCOV, JSON, JSON summary, and text reports
+- threshold checks without a Vitest dependency
 - optional merge of any Istanbul `coverage-final.json`
-- `doctor`, `doctor --post-run`, `explain`, `init`, `run`, `report`, and `check` CLI commands
-- strict diagnostics when raw runtime artifacts exist but cannot be remapped to included source files
-- ESM and CommonJS package exports for Playwright's TypeScript loader
-- release verification against a real Next.js App Router + Pages Router fixture running Playwright in parallel workers
-- external smoke verification against `vercel/next.js`'s `examples/with-playwright`
+- `doctor`, `doctor --post-run`, `explain`, `run`, `report`, `check`, `clean`, `init`, and `start-server`
+- ESM and CommonJS exports for Playwright's TypeScript loader
+
+Not supported yet:
+
+- Firefox or WebKit coverage collection
+- Edge Runtime coverage
+- Turbopack production browser coverage
+- Vercel remote deployment coverage
+- Service Worker or Web Worker coverage
+- per-test server coverage attribution
+- CSS coverage thresholds
+- a Vitest custom coverage provider
+
+See [Production Guide](docs/production.md) for the exact support contract and operational guidance.
 
 ## Install
 
@@ -30,13 +47,23 @@ Covra is production-ready inside this explicit support envelope:
 npm i -D covra
 ```
 
+Covra requires Node.js 20 or newer and `@playwright/test` when you use the Playwright fixture.
+
 ## Quick Start
+
+Generate starter files:
 
 ```bash
 npx covra init
 ```
 
-Then wire the generated fixture into your Playwright tests:
+Run `--dry-run` first if you want to preview the files:
+
+```bash
+npx covra init --dry-run
+```
+
+Wire your Playwright tests through the generated fixture:
 
 ```ts
 // e2e/covra.fixture.ts
@@ -50,13 +77,13 @@ export const test = base.extend({
 export { expect }
 ```
 
-Use that fixture in E2E specs:
+Then import from that fixture in E2E specs:
 
 ```ts
 import { test, expect } from './covra.fixture'
 ```
 
-Enable source maps only in coverage mode:
+Enable coverage source maps only during coverage runs:
 
 ```ts
 // next.config.ts
@@ -67,35 +94,44 @@ const nextConfig = {}
 export default withCovra(nextConfig)
 ```
 
-Run the Next.js server through Covra so server runtime coverage is written:
+Run the Next.js server through Covra so server runtime coverage is captured:
 
 ```ts
 // playwright.config.ts
+import { defineConfig, devices } from '@playwright/test'
+
 export default defineConfig({
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+    },
+  ],
   webServer: {
-    command: 'COVRA=1 COVRA_COVERAGE=1 E2E_COVERAGE=1 next build --webpack && covra start-server -- next start',
+    command:
+      'COVRA=1 COVRA_COVERAGE=1 E2E_COVERAGE=1 next build --webpack && covra start-server -- next start',
     url: 'http://127.0.0.1:3000',
     reuseExistingServer: false,
   },
 })
 ```
 
-The coverage build must run with `COVRA=1` or `E2E_COVERAGE=1` so `withCovra()` can enable browser and server source maps. For Next.js versions that default to Turbopack builds, use `next build --webpack` until Turbopack emits the production browser source maps your app needs.
-
-Run E2E coverage:
+Run coverage:
 
 ```bash
 npx covra run -- playwright test --project=chromium
 ```
 
-Or run the pieces yourself:
+Or run each phase yourself:
 
 ```bash
-covra clean
-playwright test --project=chromium
-covra doctor --post-run
-covra report --check
+npx covra clean
+npx playwright test --project=chromium
+npx covra doctor --post-run
+npx covra report --check
 ```
+
+Detailed setup is in [Getting Started](docs/getting-started.md).
 
 ## Config
 
@@ -134,70 +170,40 @@ export default defineCovraConfig({
 })
 ```
 
-`merge.coverageFiles` accepts any Istanbul-compatible coverage map, including Vitest, Jest, c8, or nyc output. Vitest is intentionally optional; Covra's core does not depend on it.
+`merge.coverageFiles` accepts any Istanbul-compatible coverage map, including Vitest, Jest, c8, and nyc output. Vitest is optional.
 
-## Commands
+See [Configuration Reference](docs/configuration.md).
 
-```bash
-covra init
-covra clean
-covra doctor
-covra doctor --post-run
-covra run -- playwright test --project=chromium
-covra report --check
-covra check
-covra explain app/dashboard/page.tsx
-covra start-server -- next start
-```
+## Documentation
 
-`covra doctor` is a preflight check and does not require runtime artifacts yet. `covra doctor --post-run` is a completed-run check and fails when browser/server raw coverage artifacts or source maps are missing.
+- [Getting Started](docs/getting-started.md)
+- [Next.js and Playwright Integration](docs/nextjs-playwright.md)
+- [CLI Reference](docs/cli.md)
+- [Configuration Reference](docs/configuration.md)
+- [Reports, Thresholds, and Merge](docs/reports-thresholds.md)
+- [Diagnostics and Troubleshooting](docs/diagnostics.md)
+- [Architecture](docs/architecture.md)
+- [Production Guide](docs/production.md)
+- [Release Process](docs/release.md)
 
-## Support Boundaries
+## Verification
 
-Supported:
-
-- Next.js on the Node runtime
-- App Router pages, layouts, and route handlers
-- Pages Router pages, `getServerSideProps`, and API routes
-- Playwright Chromium coverage
-- webpack production builds for reliable client/server source maps
-- TypeScript, TSX, JavaScript, and JSX source files
-- Istanbul-compatible report consumers such as Codecov and Sonar
-
-Not supported yet:
-
-- Firefox or WebKit coverage collection
-- Edge Runtime coverage
-- Turbopack production browser coverage, until source-map output is reliable enough
-- Vercel remote deployment coverage
-- Service Worker / Web Worker coverage
-- per-test server coverage attribution
-- CSS coverage thresholds
-- a Vitest custom coverage provider
-
-## Design Notes
-
-Covra is not a Vitest plugin. The core design is:
-
-```text
-Playwright E2E
-  -> browser V8 coverage
-  -> Next.js server V8 coverage
-  -> source-map remap
-  -> Istanbul-compatible coverage-final.json
-  -> reports and threshold checks
-```
-
-Vitest integration is just artifact compatibility: run Vitest with coverage, pass its `coverage-final.json` through `merge.coverageFiles`, and Covra will combine it with E2E coverage.
-
-## Release Checks
+Covra's release gate runs:
 
 ```bash
 npm ci
-npx playwright install chromium
+npx playwright install --with-deps chromium
 npm run check:release
 ```
 
-This runs typecheck, unit tests, a real local Next.js App Router + Pages Router fixture, an external smoke test against `vercel/next.js/examples/with-playwright`, audit, build, and `npm pack --dry-run`.
+`check:release` includes type checking, unit tests, docs link checks, a real local Next.js App Router + Pages Router fixture, an external smoke test against `vercel/next.js/examples/with-playwright`, `npm audit`, build, and `npm pack --dry-run`.
 
-The external smoke test is intentionally networked. It sparse-clones the upstream Next.js repository into a temporary directory, injects Covra through normal package imports, runs Playwright against Chromium, then checks `doctor --post-run`, `report`, `check`, and `explain` against both App Router and Pages Router source files.
+## Security
+
+Coverage artifacts and source maps can contain source code, local paths, route names, and generated bundle details. Covra writes them locally and never uploads them. Do not publish `.covra/` raw artifacts or HTML reports unless you have reviewed their contents.
+
+See [SECURITY.md](SECURITY.md).
+
+## License
+
+MIT

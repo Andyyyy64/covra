@@ -25,7 +25,10 @@
   },
   "files": [
     "dist",
+    "docs",
     "README.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
     "LICENSE"
   ],
   "scripts": {
@@ -33,10 +36,11 @@
     "dev": "tsx src/cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "check:docs": "node scripts/check-docs.mjs",
     "test:fixture:next": "npm run build && node dist/cli.js clean --config fixtures/next-app-router/covra.config.ts && npx playwright test --config fixtures/next-app-router/playwright.config.ts && node dist/cli.js doctor --post-run --config fixtures/next-app-router/covra.config.ts && node dist/cli.js report --config fixtures/next-app-router/covra.config.ts && node dist/cli.js check --config fixtures/next-app-router/covra.config.ts && node dist/cli.js explain src/ClientCounter.tsx --config fixtures/next-app-router/covra.config.ts && node scripts/verify-next-fixture.mjs",
     "test:smoke:nextjs-example": "npm run build && node scripts/smoke-next-with-playwright.mjs",
-    "check": "npm run typecheck && npm run test && npm run build",
-    "check:release": "npm run typecheck && npm run test && npm run test:fixture:next && npm run test:smoke:nextjs-example && npm audit && npm pack --dry-run",
+    "check": "npm run typecheck && npm run test && npm run check:docs && npm run build",
+    "check:release": "npm run typecheck && npm run test && npm run check:docs && npm run test:fixture:next && npm run test:smoke:nextjs-example && npm audit && npm pack --dry-run",
     "prepack": "npm run build"
   },
   "keywords": [
