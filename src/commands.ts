@@ -83,14 +83,14 @@ export async function checkCommand(options: {
   return result.passed ? 0 : 1
 }
 
-export async function doctorCommand(options: { cwd?: string; config?: string } = {}): Promise<number> {
+export async function doctorCommand(options: { cwd?: string; config?: string; postRun?: boolean } = {}): Promise<number> {
   const cwd = path.resolve(options.cwd ?? process.cwd())
   const configPath = findConfigPath(cwd, options.config)
   const config = await loadCovraConfig(options)
   const diagnostics: Array<{ ok: boolean; message: string; detail?: string }> = []
 
   diagnostics.push({
-    ok: Boolean(configPath),
+    ok: true,
     message: configPath ? 'Covra config found' : 'Covra config not found; defaults will be used',
     detail: configPath,
   })
@@ -129,8 +129,10 @@ export async function doctorCommand(options: { cwd?: string; config?: string } =
     suppressErrors: true,
   })
   diagnostics.push({
-    ok: browserArtifacts.length > 0,
-    message: `${browserArtifacts.length} browser coverage artifacts found`,
+    ok: !options.postRun || browserArtifacts.length > 0,
+    message: options.postRun
+      ? `${browserArtifacts.length} browser coverage artifacts found`
+      : `${browserArtifacts.length} browser coverage artifacts found (optional before a run)`,
     detail: browserRawDir(config),
   })
 
@@ -140,8 +142,10 @@ export async function doctorCommand(options: { cwd?: string; config?: string } =
     suppressErrors: true,
   })
   diagnostics.push({
-    ok: serverArtifacts.length > 0,
-    message: `${serverArtifacts.length} server coverage artifacts found`,
+    ok: !options.postRun || serverArtifacts.length > 0,
+    message: options.postRun
+      ? `${serverArtifacts.length} server coverage artifacts found`
+      : `${serverArtifacts.length} server coverage artifacts found (optional before a run)`,
     detail: serverRawDir(config),
   })
 
@@ -151,8 +155,10 @@ export async function doctorCommand(options: { cwd?: string; config?: string } =
     suppressErrors: true,
   })
   diagnostics.push({
-    ok: sourceMaps.length > 0,
-    message: `${sourceMaps.length} source maps found`,
+    ok: !options.postRun || sourceMaps.length > 0,
+    message: options.postRun
+      ? `${sourceMaps.length} source maps found`
+      : `${sourceMaps.length} source maps found (optional before a coverage build)`,
   })
 
   console.log(pc.bold('Covra Doctor'))
@@ -284,7 +290,7 @@ export async function startServerCommand(command: string[], options: { cwd?: str
       NODE_OPTIONS: mergeNodeOptions(
         process.env.NODE_OPTIONS,
         '--enable-source-maps',
-        `--import=${fileURLToPath(new URL('./server-agent.js', import.meta.url))}`,
+        `--import=${quoteNodeOptionValue(fileURLToPath(new URL('./server-agent.js', import.meta.url)))}`,
       ),
     },
   })
@@ -427,6 +433,10 @@ function mergeNodeOptions(current: string | undefined, ...options: string[]): st
     if (!parts.includes(option)) parts.push(option)
   }
   return parts.join(' ')
+}
+
+function quoteNodeOptionValue(value: string): string {
+  return /\s/.test(value) ? JSON.stringify(value) : value
 }
 
 async function waitForChild(child: ReturnType<typeof spawn>): Promise<number> {

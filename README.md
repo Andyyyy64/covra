@@ -4,9 +4,9 @@ Runtime coverage for Playwright-powered Next.js apps.
 
 Covra collects browser and Next.js server runtime coverage while Playwright E2E tests run, maps generated JavaScript back to source files, writes Istanbul-compatible reports, and gives you `doctor` / `explain` commands when the numbers look suspicious.
 
-## Status
+## Production Envelope
 
-This repository currently ships the MVP shape:
+Covra is production-ready inside this explicit support envelope:
 
 - Next.js-first coverage config
 - Playwright Chromium browser coverage fixture
@@ -18,7 +18,9 @@ This repository currently ships the MVP shape:
 - HTML, LCOV, JSON, and text reports
 - Vitest-like threshold checks without a Vitest dependency
 - optional merge of any Istanbul `coverage-final.json`
-- `doctor`, `explain`, `init`, `run`, `report`, and `check` CLI commands
+- `doctor`, `doctor --post-run`, `explain`, `init`, `run`, `report`, and `check` CLI commands
+- strict diagnostics when raw runtime artifacts exist but cannot be remapped to included source files
+- release verification against a real Next.js App Router fixture running Playwright in parallel workers
 
 ## Install
 
@@ -87,7 +89,9 @@ npx covra run -- playwright test --project=chromium
 Or run the pieces yourself:
 
 ```bash
+covra clean
 playwright test --project=chromium
+covra doctor --post-run
 covra report --check
 ```
 
@@ -136,6 +140,7 @@ export default defineCovraConfig({
 covra init
 covra clean
 covra doctor
+covra doctor --post-run
 covra run -- playwright test --project=chromium
 covra report --check
 covra check
@@ -143,9 +148,11 @@ covra explain app/dashboard/page.tsx
 covra start-server -- next start
 ```
 
-## MVP Boundaries
+`covra doctor` is a preflight check and does not require runtime artifacts yet. `covra doctor --post-run` is a completed-run check and fails when browser/server raw coverage artifacts or source maps are missing.
 
-Supported in the MVP:
+## Support Boundaries
+
+Supported:
 
 - Next.js on the Node runtime
 - Playwright Chromium coverage

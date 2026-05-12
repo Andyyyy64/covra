@@ -27,7 +27,7 @@ function listJsonFiles(dir) {
 
 const browserArtifacts = listJsonFiles(rawBrowserDir)
 const serverArtifacts = listJsonFiles(rawServerDir)
-assert(browserArtifacts.length > 0, 'expected browser V8 coverage artifacts')
+assert(browserArtifacts.length >= 2, 'expected browser V8 coverage artifacts from parallel Playwright workers')
 assert(serverArtifacts.length > 0, 'expected server NODE_V8_COVERAGE artifacts')
 
 assert(existsSync(coverageFile), 'expected coverage-final.json')

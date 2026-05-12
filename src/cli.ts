@@ -30,8 +30,9 @@ cli
 cli
   .command('doctor', 'Inspect Covra, Next.js, Playwright, and coverage artifacts')
   .option('-c, --config <file>', 'Config file')
+  .option('--post-run', 'Require runtime artifacts and source maps from a completed coverage run')
   .action(async (options) => {
-    process.exitCode = await doctorCommand({ config: options.config })
+    process.exitCode = await doctorCommand({ config: options.config, postRun: Boolean(options.postRun) })
   })
 
 cli

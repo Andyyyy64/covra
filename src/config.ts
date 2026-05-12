@@ -60,7 +60,6 @@ export function normalizeConfig(config: CovraConfig, cwd = process.cwd()): Norma
   const server = normalizeBooleanOrOptions(config.collect?.server, {
     enabled: true,
     coverageDir: path.join(rawDir, 'server'),
-    includeStartupCoverage: false,
     teardownWaitMs: 3000,
   })
 

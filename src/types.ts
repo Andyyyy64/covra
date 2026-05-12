@@ -34,7 +34,6 @@ export type BrowserCollectOptions = {
 export type ServerCollectOptions = {
   enabled?: boolean
   coverageDir?: string
-  includeStartupCoverage?: boolean
   teardownWaitMs?: number
 }
 

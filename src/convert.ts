@@ -88,18 +88,28 @@ async function addBrowserCoverage(
     return
   }
 
+  let mappedEntries = 0
   for (const file of files) {
     const artifact = await safeReadJson<BrowserCoverageArtifact>(file, diagnostics)
     if (!artifact || artifact.kind !== 'browser-v8') continue
 
     for (const entry of artifact.entries) {
-      await convertEntry(config, map, diagnostics, fileInfo, {
+      mappedEntries += await convertEntry(config, map, diagnostics, fileInfo, {
         runtime: 'browser',
         url: entry.url,
         source: entry.source,
         functions: entry.functions,
       })
     }
+  }
+
+  if (mappedEntries === 0) {
+    diagnostics.push({
+      level: config.strict ? 'error' : 'warn',
+      code: 'browser.remap.empty',
+      message: 'Browser coverage artifacts were found, but none mapped back to included source files.',
+      detail: 'Check that the Playwright project is chromium, source maps are emitted, and include/exclude globs match your app source.',
+    })
   }
 }
 
@@ -128,17 +138,27 @@ async function addServerCoverage(
     return
   }
 
+  let mappedEntries = 0
   for (const file of files) {
     const artifact = await safeReadJson<NodeV8CoverageFile>(file, diagnostics)
     if (!artifact?.result) continue
 
     for (const entry of artifact.result) {
-      await convertEntry(config, map, diagnostics, fileInfo, {
+      mappedEntries += await convertEntry(config, map, diagnostics, fileInfo, {
         runtime: 'server',
         url: entry.url,
         functions: entry.functions,
       })
     }
+  }
+
+  if (mappedEntries === 0) {
+    diagnostics.push({
+      level: config.strict ? 'error' : 'warn',
+      code: 'server.remap.empty',
+      message: 'Server coverage artifacts were found, but none mapped back to included source files.',
+      detail: 'Check NODE_V8_COVERAGE, withCovra(), production source maps, and include/exclude globs.',
+    })
   }
 }
 
@@ -180,12 +200,12 @@ async function convertEntry(
   diagnostics: Diagnostic[],
   fileInfo: Map<string, FileRuntimeInfo>,
   entry: V8EntryInput,
-): Promise<void> {
-  if (!entry.url || entry.url.startsWith('node:') || entry.url.includes('/node_modules/')) return
-  if (!entry.functions?.length) return
+): Promise<number> {
+  if (!entry.url || entry.url.startsWith('node:') || entry.url.includes('/node_modules/')) return 0
+  if (!entry.functions?.length) return 0
 
   const generatedFile = await materializeGeneratedFile(config, entry, diagnostics)
-  if (!generatedFile) return
+  if (!generatedFile) return 0
 
   try {
     const converter = v8ToIstanbul(generatedFile, 0, entry.source ? { source: entry.source } : undefined)
@@ -194,6 +214,7 @@ async function convertEntry(
     const data = converter.toIstanbul()
     const normalized = normalizeIstanbulData(config, data, diagnostics, fileInfo, entry.runtime, entry.url)
     map.merge(normalized)
+    return Object.keys(normalized).length
   } catch (error) {
     diagnostics.push({
       level: 'warn',
@@ -201,6 +222,7 @@ async function convertEntry(
       message: 'Failed to convert a V8 coverage entry.',
       detail: `${entry.url}: ${error instanceof Error ? error.message : String(error)}`,
     })
+    return 0
   }
 }
 
