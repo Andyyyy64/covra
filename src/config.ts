@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import path from 'node:path'
 import { createJiti } from 'jiti'
 import type { CovraConfig, NormalizedCovraConfig } from './types.js'
@@ -23,7 +23,7 @@ export async function loadCovraConfig(options: {
   let loaded: CovraConfig = {}
 
   if (configPath) {
-    const jiti = createJiti(import.meta.url)
+    const jiti = createJiti(configPath)
     const mod = await jiti.import(configPath, { default: true })
     loaded = (mod ?? {}) as CovraConfig
   }
@@ -46,7 +46,8 @@ export function findConfigPath(cwd: string, explicit?: string): string | undefin
 }
 
 export function normalizeConfig(config: CovraConfig, cwd = process.cwd()): NormalizedCovraConfig {
-  const rootDir = path.resolve(cwd, config.rootDir ?? '.')
+  const resolvedRootDir = path.resolve(cwd, config.rootDir ?? '.')
+  const rootDir = existsSync(resolvedRootDir) ? realpathSync(resolvedRootDir) : resolvedRootDir
   const rawDir = path.resolve(rootDir, config.rawDir ?? '.covra/raw')
   const outputDir = path.resolve(rootDir, config.outputDir ?? 'coverage/covra')
 

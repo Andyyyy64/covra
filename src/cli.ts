@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { cac } from 'cac'
+import { readFileSync } from 'node:fs'
 import {
   checkCommand,
   cleanCommand,
@@ -12,6 +13,9 @@ import {
 } from './commands.js'
 
 const cli = cac('covra')
+const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
+  version?: string
+}
 
 cli
   .command('init', 'Create a starter Covra config and Playwright fixture')
@@ -86,7 +90,7 @@ cli
   })
 
 cli.help()
-cli.version('0.1.0')
+cli.version(packageJson.version ?? '0.0.0')
 cli.parse()
 
 function commandFromDoubleDash(commandName: string): string[] | undefined {

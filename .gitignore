@@ -2,6 +2,7 @@ node_modules
 dist
 coverage
 .covra
+.covra-smoke
 test-results
 .next
 fixtures/**/.next

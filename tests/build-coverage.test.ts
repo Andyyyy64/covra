@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises'
+import { realpathSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -28,7 +29,7 @@ describe('buildCoverageMap', () => {
     const result = await buildCoverageMap(config)
     const summary = result.coverageMap.getCoverageSummary().toJSON()
 
-    expect(result.coverageMap.files()).toContain(path.join(root, 'src/example.ts'))
+    expect(result.coverageMap.files()).toContain(path.join(realpathSync(root), 'src/example.ts'))
     expect(summary.lines.pct).toBe(0)
   })
 })

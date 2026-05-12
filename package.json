@@ -1,6 +1,6 @@
 {
   "name": "covra",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Runtime coverage for Playwright-powered Next.js apps.",
   "type": "module",
   "bin": {
@@ -9,15 +9,18 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
     },
     "./playwright": {
       "types": "./dist/playwright.d.ts",
-      "import": "./dist/playwright.js"
+      "import": "./dist/playwright.js",
+      "require": "./dist/playwright.cjs"
     },
     "./next": {
       "types": "./dist/next.d.ts",
-      "import": "./dist/next.js"
+      "import": "./dist/next.js",
+      "require": "./dist/next.cjs"
     }
   },
   "files": [
@@ -31,8 +34,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:fixture:next": "npm run build && node dist/cli.js clean --config fixtures/next-app-router/covra.config.ts && npx playwright test --config fixtures/next-app-router/playwright.config.ts && node dist/cli.js doctor --post-run --config fixtures/next-app-router/covra.config.ts && node dist/cli.js report --config fixtures/next-app-router/covra.config.ts && node dist/cli.js check --config fixtures/next-app-router/covra.config.ts && node dist/cli.js explain src/ClientCounter.tsx --config fixtures/next-app-router/covra.config.ts && node scripts/verify-next-fixture.mjs",
+    "test:smoke:nextjs-example": "npm run build && node scripts/smoke-next-with-playwright.mjs",
     "check": "npm run typecheck && npm run test && npm run build",
-    "check:release": "npm run typecheck && npm run test && npm run test:fixture:next && npm audit && npm pack --dry-run",
+    "check:release": "npm run typecheck && npm run test && npm run test:fixture:next && npm run test:smoke:nextjs-example && npm audit && npm pack --dry-run",
     "prepack": "npm run build"
   },
   "keywords": [

@@ -20,7 +20,9 @@ Covra is production-ready inside this explicit support envelope:
 - optional merge of any Istanbul `coverage-final.json`
 - `doctor`, `doctor --post-run`, `explain`, `init`, `run`, `report`, and `check` CLI commands
 - strict diagnostics when raw runtime artifacts exist but cannot be remapped to included source files
-- release verification against a real Next.js App Router fixture running Playwright in parallel workers
+- ESM and CommonJS package exports for Playwright's TypeScript loader
+- release verification against a real Next.js App Router + Pages Router fixture running Playwright in parallel workers
+- external smoke verification against `vercel/next.js`'s `examples/with-playwright`
 
 ## Install
 
@@ -155,6 +157,8 @@ covra start-server -- next start
 Supported:
 
 - Next.js on the Node runtime
+- App Router pages, layouts, and route handlers
+- Pages Router pages, `getServerSideProps`, and API routes
 - Playwright Chromium coverage
 - webpack production builds for reliable client/server source maps
 - TypeScript, TSX, JavaScript, and JSX source files
@@ -194,4 +198,6 @@ npx playwright install chromium
 npm run check:release
 ```
 
-This runs unit tests, a real Next.js App Router + Playwright fixture, audit, build, and `npm pack --dry-run`.
+This runs typecheck, unit tests, a real local Next.js App Router + Pages Router fixture, an external smoke test against `vercel/next.js/examples/with-playwright`, audit, build, and `npm pack --dry-run`.
+
+The external smoke test is intentionally networked. It sparse-clones the upstream Next.js repository into a temporary directory, injects Covra through normal package imports, runs Playwright against Chromium, then checks `doctor --post-run`, `report`, `check`, and `explain` against both App Router and Pages Router source files.

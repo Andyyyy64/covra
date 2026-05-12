@@ -9,6 +9,7 @@ export default defineCovraConfig({
   },
   include: [
     'app/**/*.{ts,tsx}',
+    'pages/**/*.{ts,tsx}',
     'src/**/*.{ts,tsx}',
   ],
   exclude: [
