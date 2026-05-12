@@ -46,10 +46,20 @@ export function covraFixture(options: CovraPlaywrightFixtureOptions = {}) {
       }
 
       const trackedPages = new Set<Page>()
+      const navigations = new Set<string>()
+      const requests = new Set<string>()
       const startPromises = new Set<Promise<void>>()
+      const rememberNavigation = (url: string) => {
+        if (!url || url === 'about:blank') return
+        navigations.add(url)
+      }
       const startPage = (page: Page) => {
         if (trackedPages.has(page)) return
         trackedPages.add(page)
+        rememberNavigation(page.url())
+        page.on('framenavigated', (frame) => {
+          if (frame === page.mainFrame()) rememberNavigation(frame.url())
+        })
         const promise = page.coverage
           .startJSCoverage({
             resetOnNavigation: config.collect.browser.resetOnNavigation,
@@ -69,12 +79,16 @@ export function covraFixture(options: CovraPlaywrightFixtureOptions = {}) {
       }
 
       context.on('page', startPage)
+      context.on('request', (request) => {
+        requests.add(request.url())
+      })
 
       await use(context)
       await Promise.allSettled([...startPromises])
 
       const entries: PlaywrightJSCoverageEntry[] = []
       for (const page of trackedPages) {
+        rememberNavigation(page.url())
         try {
           entries.push(...(await page.coverage.stopJSCoverage()))
         } catch {
@@ -87,6 +101,8 @@ export function covraFixture(options: CovraPlaywrightFixtureOptions = {}) {
         await writeBrowserCoverageArtifact({
           rawDir,
           entries,
+          navigations: [...navigations],
+          requests: [...requests],
           test: toArtifactTestInfo(testInfo),
         })
       }

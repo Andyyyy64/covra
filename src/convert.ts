@@ -100,6 +100,12 @@ async function addBrowserCoverage(
     const artifact = await safeReadJson<BrowserCoverageArtifact>(file, diagnostics)
     if (!artifact || artifact.kind !== 'browser-v8') continue
     markRouteRuntime(routeInfo, artifact.test)
+    for (const navigation of artifact.navigations ?? []) {
+      markRouteFromUrl(routeInfo, navigation, artifact.test)
+    }
+    for (const request of artifact.requests ?? []) {
+      markRouteFromUrl(routeInfo, request, artifact.test, { apiOnly: true })
+    }
 
     for (const entry of artifact.entries) {
       mappedEntries += await convertEntry(config, map, diagnostics, fileInfo, {
@@ -453,16 +459,55 @@ function markRouteRuntime(routeInfo: Map<string, RouteRuntimeInfo>, test?: Brows
         routeInfo.get(mark.route) ??
         ({
           route: mark.route,
+          runtimes: new Set(),
           tests: new Set(),
           uxStates: new Set(),
         } satisfies RouteRuntimeInfo)
 
       if (title) existing.tests.add(title)
+      existing.runtimes.add('browser')
       existing.uxStates.add(mark.label ? `${mark.state}: ${mark.label}` : mark.state)
       routeInfo.set(mark.route, existing)
     } catch {
       // Ignore malformed user annotations. They should not break coverage generation.
     }
+  }
+}
+
+function markRouteFromUrl(
+  routeInfo: Map<string, RouteRuntimeInfo>,
+  url: string,
+  test?: BrowserCoverageArtifact['test'],
+  options: { apiOnly?: boolean } = {},
+): void {
+  const title = test?.title
+  const route = routeFromUrl(url)
+  if (!route) return
+  if (options.apiOnly && !route.startsWith('/api/')) return
+
+  const existing =
+    routeInfo.get(route) ??
+    ({
+      route,
+      runtimes: new Set(),
+      tests: new Set(),
+      uxStates: new Set(),
+    } satisfies RouteRuntimeInfo)
+
+  existing.runtimes.add('browser')
+  if (title) existing.tests.add(title)
+  routeInfo.set(route, existing)
+}
+
+function routeFromUrl(value: string): string | undefined {
+  try {
+    const url = new URL(value)
+    const pathname = url.pathname.replace(/\/+$/, '') || '/'
+    if (pathname.startsWith('/_next/')) return undefined
+    if (pathname.includes('.')) return undefined
+    return pathname
+  } catch {
+    return undefined
   }
 }
 

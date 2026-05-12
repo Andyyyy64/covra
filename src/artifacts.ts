@@ -10,6 +10,8 @@ import { hashText, safeFilePart } from './path-utils.js'
 export async function writeBrowserCoverageArtifact(options: {
   rawDir: string
   entries: PlaywrightJSCoverageEntry[]
+  navigations?: string[]
+  requests?: string[]
   test?: BrowserCoverageArtifact['test']
 }): Promise<string> {
   const dir = path.join(options.rawDir, 'browser')
@@ -26,6 +28,8 @@ export async function writeBrowserCoverageArtifact(options: {
     createdAt: new Date().toISOString(),
     test: options.test,
     entries: options.entries,
+    navigations: options.navigations,
+    requests: options.requests,
   }
 
   await fs.writeFile(file, JSON.stringify(artifact, null, 2))

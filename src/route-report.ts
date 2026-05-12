@@ -11,6 +11,8 @@ export type RouteCoverageRow = {
   kind: RouteInfo['kind']
   file: string
   displayFile: string
+  observed: boolean
+  flow: CoverageMetricSummary
   lines: CoverageMetricSummary
   branches: CoverageMetricSummary
   statements: CoverageMetricSummary
@@ -34,6 +36,8 @@ export type RouteCoverageReport = {
   confidence?: number
   totals: {
     routes: number
+    observedRoutes: number
+    routeCoveragePct: number
     withBrowserRuntime: number
     withServerRuntime: number
     withUxStates: number
@@ -55,24 +59,34 @@ export function buildRouteCoverageRows(
     .map((file: string): RouteCoverageRow | undefined => {
       const routeInfo = routeInfoForFile(config.rootDir, file)
       if (!routeInfo) return undefined
+      if (!isPrimaryRouteKind(routeInfo.kind)) return undefined
 
       const summary = coverageMap.fileCoverageFor(file).toSummary().toJSON()
       const metaFile = metaByFile.get(file)
-      const metaRoute = metaByRoute.get(routeInfo.route)
+      const metaRoutes = routeMetaForRoute(routeInfo.route, metaByRoute)
       const displayFile = relativeToRoot(config.rootDir, file)
-      const tests = unique([...(metaFile?.tests ?? []), ...(metaRoute?.tests ?? [])])
-      const uxStates = unique([...(metaFile?.uxStates ?? []), ...(metaRoute?.uxStates ?? [])])
+      const routeTests = unique(metaRoutes.flatMap((route) => route.tests))
+      const tests = unique([...(metaFile?.tests ?? []), ...routeTests])
+      const uxStates = unique([...(metaFile?.uxStates ?? []), ...metaRoutes.flatMap((route) => route.uxStates)])
+      const runtimes = unique([...(metaFile?.runtimes ?? []), ...metaRoutes.flatMap((route) => route.runtimes ?? [])])
+      const observed = routeTests.length > 0 || uxStates.length > 0
 
       return {
         route: routeInfo.route,
         kind: routeInfo.kind,
         file,
         displayFile,
+        observed,
+        flow: {
+          pct: observed ? 100 : 0,
+          covered: observed ? 1 : 0,
+          total: 1,
+        },
         lines: summary.lines,
         branches: summary.branches,
         statements: summary.statements,
         functions: summary.functions,
-        runtimes: metaFile?.runtimes ?? [],
+        runtimes,
         sourceMapStatus: metaFile?.sourceMapStatus ?? 'unknown',
         tests,
         uxStates,
@@ -85,6 +99,36 @@ export function buildRouteCoverageRows(
     )
 }
 
+function isPrimaryRouteKind(kind: RouteInfo['kind']): boolean {
+  return kind === 'app-page' || kind === 'app-route' || kind === 'pages-page' || kind === 'pages-api'
+}
+
+function routeMetaForRoute(
+  route: string,
+  metaByRoute: Map<string, { runtimes?: string[]; tests: string[]; uxStates: string[] }>,
+): Array<{ runtimes?: string[]; tests: string[]; uxStates: string[] }> {
+  const aliases = routeAliases(route)
+  const matches: Array<{ runtimes?: string[]; tests: string[]; uxStates: string[] }> = []
+
+  for (const alias of aliases) {
+    const meta = metaByRoute.get(alias)
+    if (meta) matches.push(meta)
+  }
+
+  return matches
+}
+
+function routeAliases(route: string): string[] {
+  const aliases = new Set([route])
+  const parts = route.split('/').filter(Boolean)
+
+  if (parts[0]?.startsWith('[') && parts[0].endsWith(']')) {
+    aliases.add(parts.length === 1 ? '/' : `/${parts.slice(1).join('/')}`)
+  }
+
+  return [...aliases]
+}
+
 function unique(values: string[]): string[] {
   return [...new Set(values)].sort((a, b) => a.localeCompare(b))
 }
@@ -95,12 +139,15 @@ export async function writeUxDashboard(options: {
   meta?: CovraMetaFile
 }): Promise<RouteCoverageReport> {
   const rows = buildRouteCoverageRows(options.config, options.coverageMap, options.meta)
+  const observedRoutes = rows.filter((row) => row.observed).length
   const report: RouteCoverageReport = {
     version: 1,
     createdAt: new Date().toISOString(),
     confidence: options.meta?.confidence,
     totals: {
       routes: rows.length,
+      observedRoutes,
+      routeCoveragePct: rows.length === 0 ? 100 : Number(((observedRoutes / rows.length) * 100).toFixed(1)),
       withBrowserRuntime: rows.filter((row) => row.runtimes.includes('browser')).length,
       withServerRuntime: rows.filter((row) => row.runtimes.includes('server')).length,
       withUxStates: rows.filter((row) => row.uxStates.length > 0).length,
@@ -127,6 +174,7 @@ export function printRouteCoverageRows(rows: RouteCoverageRow[], limit = 20): vo
     [
       'Route'.padEnd(18),
       'Kind'.padEnd(13),
+      'E2E flow'.padEnd(12),
       'Lines'.padEnd(18),
       'Branches'.padEnd(18),
       'Runtime'.padEnd(22),
@@ -140,6 +188,7 @@ export function printRouteCoverageRows(rows: RouteCoverageRow[], limit = 20): vo
       [
         row.route.padEnd(18),
         row.kind.padEnd(13),
+        formatFlow(row).padEnd(12),
         formatMetric(row.lines).padEnd(18),
         formatMetric(row.branches).padEnd(18),
         (row.runtimes.join(', ') || 'unknown').padEnd(22),
@@ -153,10 +202,10 @@ export function printRouteCoverageRows(rows: RouteCoverageRow[], limit = 20): vo
 function renderDashboard(report: RouteCoverageReport): string {
   const pageRows = report.routes.map(renderRouteRow).join('\n')
   const worstRoutes = [...report.routes]
-    .filter((row) => row.branches.covered < row.branches.total)
-    .sort((a, b) => a.branches.pct - b.branches.pct || a.lines.pct - b.lines.pct)
+    .filter((row) => !row.observed || row.branches.covered < row.branches.total)
+    .sort((a, b) => a.flow.pct - b.flow.pct || a.branches.pct - b.branches.pct || a.lines.pct - b.lines.pct)
     .slice(0, 6)
-    .map((row) => `<li><span>${escapeHtml(row.route)}</span><strong>${formatMetric(row.branches)}</strong></li>`)
+    .map((row) => `<li><span>${escapeHtml(row.route)}</span><strong>${escapeHtml(formatFlow(row))}</strong></li>`)
     .join('\n')
 
   return `<!doctype html>
@@ -242,7 +291,7 @@ function renderDashboard(report: RouteCoverageReport): string {
       </div>
     </header>
     <section class="cards">
-      ${renderCard('Routes', report.totals.routes)}
+      ${renderCard('E2E route coverage', `${report.totals.observedRoutes}/${report.totals.routes}`)}
       ${renderCard('Browser runtime', report.totals.withBrowserRuntime)}
       ${renderCard('Server runtime', report.totals.withServerRuntime)}
       ${renderCard('UX states', report.totals.withUxStates)}
@@ -255,6 +304,7 @@ function renderDashboard(report: RouteCoverageReport): string {
           <thead>
             <tr>
               <th>Route</th>
+              <th>E2E flow</th>
               <th>Lines</th>
               <th>Branches</th>
               <th>Runtime</th>
@@ -268,12 +318,12 @@ function renderDashboard(report: RouteCoverageReport): string {
         </table>
       </div>
       <aside class="panel">
-        <h2>Branch Gaps</h2>
+        <h2>Uncovered UX Surfaces</h2>
         <div class="side">
           <ol>
-            ${worstRoutes || '<li><span>No branch gaps</span><strong>100%</strong></li>'}
+            ${worstRoutes || '<li><span>All routes observed</span><strong>100%</strong></li>'}
           </ol>
-          <p>Branches are a route-level hint for unvisited UI states such as error, empty, loading, permission, or modal paths.</p>
+          <p>E2E flow is based on observed top-level navigations, API requests, and explicit UX state marks. Source lines remain available as a secondary signal.</p>
           <div class="actions">
             <a class="button" href="route-coverage.json">Route JSON</a>
             <a class="button" href="lcov-report/index.html">LCOV HTML</a>
@@ -293,6 +343,7 @@ function renderCard(label: string, value: string | number): string {
 function renderRouteRow(row: RouteCoverageRow): string {
   return `<tr>
     <td><div class="route">${escapeHtml(row.route)}</div><div class="kind">${escapeHtml(row.kind)}</div></td>
+    <td>${renderMetric(row.flow)}</td>
     <td>${renderMetric(row.lines)}</td>
     <td>${renderMetric(row.branches)}</td>
     <td>${renderRuntime(row.runtimes)}</td>
@@ -322,6 +373,10 @@ function renderStates(states: string[], tests: string[]): string {
 
 function formatMetric(metric: CoverageMetricSummary): string {
   return `${metric.pct.toFixed(1)}% (${metric.covered}/${metric.total})`
+}
+
+function formatFlow(row: RouteCoverageRow): string {
+  return row.observed ? 'covered' : 'missing'
 }
 
 function escapeHtml(value: string): string {

@@ -20,6 +20,7 @@ export type CovraMetaFile = {
   }>
   routes?: Array<{
     route: string
+    runtimes?: string[]
     tests: string[]
     uxStates: string[]
   }>
@@ -51,6 +52,7 @@ export async function writeMetaFile(options: {
     }),
     routes: [...(options.routeInfo?.values() ?? [])].map((route) => ({
       route: route.route,
+      runtimes: [...route.runtimes],
       tests: [...route.tests],
       uxStates: [...route.uxStates],
     })),

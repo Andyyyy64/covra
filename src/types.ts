@@ -144,6 +144,8 @@ export type BrowserCoverageArtifact = {
     }>
   }
   entries: PlaywrightJSCoverageEntry[]
+  navigations?: string[]
+  requests?: string[]
 }
 
 export type NodeV8CoverageFile = {
@@ -168,6 +170,7 @@ export type FileRuntimeInfo = {
 
 export type RouteRuntimeInfo = {
   route: string
+  runtimes: Set<CoverageRuntime>
   tests: Set<string>
   uxStates: Set<string>
 }
