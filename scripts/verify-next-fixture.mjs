@@ -47,12 +47,16 @@ const serverFile = path.join(fixtureRoot, 'src/serverGreeting.ts')
 const pagesFile = path.join(fixtureRoot, 'pages/legacy.tsx')
 const pagesApiFile = path.join(fixtureRoot, 'pages/api/legacy.ts')
 const pagesGreetingFile = path.join(fixtureRoot, 'src/pagesGreeting.ts')
+const uxEvidenceFile = path.join(fixtureRoot, 'src/UxEvidenceDemo.tsx')
+const uxEvidenceApiFile = path.join(fixtureRoot, 'app/api/ux-evidence/route.ts')
 
 assert(coverage[clientFile], 'expected ClientCounter.tsx in coverage-final.json')
 assert(coverage[serverFile], 'expected serverGreeting.ts in coverage-final.json')
 assert(coverage[pagesFile], 'expected pages/legacy.tsx in coverage-final.json')
 assert(coverage[pagesApiFile], 'expected pages/api/legacy.ts in coverage-final.json')
 assert(coverage[pagesGreetingFile], 'expected pagesGreeting.ts in coverage-final.json')
+assert(coverage[uxEvidenceFile], 'expected UxEvidenceDemo.tsx in coverage-final.json')
+assert(coverage[uxEvidenceApiFile], 'expected app/api/ux-evidence/route.ts in coverage-final.json')
 
 function findMeta(file) {
   return meta.files.find((entry) => entry.file === file)
@@ -63,12 +67,16 @@ const serverMeta = findMeta(serverFile)
 const pagesMeta = findMeta(pagesFile)
 const pagesApiMeta = findMeta(pagesApiFile)
 const pagesGreetingMeta = findMeta(pagesGreetingFile)
+const uxEvidenceMeta = findMeta(uxEvidenceFile)
+const uxEvidenceApiMeta = findMeta(uxEvidenceApiFile)
 
 assert(clientMeta, 'expected ClientCounter.tsx in covra-meta.json')
 assert(serverMeta, 'expected serverGreeting.ts in covra-meta.json')
 assert(pagesMeta, 'expected pages/legacy.tsx in covra-meta.json')
 assert(pagesApiMeta, 'expected pages/api/legacy.ts in covra-meta.json')
 assert(pagesGreetingMeta, 'expected pagesGreeting.ts in covra-meta.json')
+assert(uxEvidenceMeta, 'expected UxEvidenceDemo.tsx in covra-meta.json')
+assert(uxEvidenceApiMeta, 'expected app/api/ux-evidence/route.ts in covra-meta.json')
 assert(clientMeta.runtimes.includes('browser'), 'expected ClientCounter browser runtime')
 assert(clientMeta.runtimes.includes('server'), 'expected ClientCounter server runtime')
 assert(serverMeta.runtimes.includes('server'), 'expected serverGreeting server runtime')
@@ -76,11 +84,16 @@ assert(pagesMeta.runtimes.includes('browser'), 'expected pages/legacy browser ru
 assert(pagesMeta.runtimes.includes('server'), 'expected pages/legacy server runtime')
 assert(pagesApiMeta.runtimes.includes('server'), 'expected pages/api/legacy server runtime')
 assert(pagesGreetingMeta.runtimes.includes('server'), 'expected pagesGreeting server runtime')
+assert(uxEvidenceMeta.runtimes.includes('browser'), 'expected UxEvidenceDemo browser runtime')
+assert(uxEvidenceMeta.runtimes.includes('server'), 'expected UxEvidenceDemo server runtime')
+assert(uxEvidenceApiMeta.runtimes.includes('server'), 'expected app/api/ux-evidence server runtime')
 assert(clientMeta.sourceMapStatus === 'resolved', 'expected ClientCounter source map to resolve')
 assert(serverMeta.sourceMapStatus === 'resolved', 'expected serverGreeting source map to resolve')
 assert(pagesMeta.sourceMapStatus === 'resolved', 'expected pages/legacy source map to resolve')
 assert(pagesApiMeta.sourceMapStatus === 'resolved', 'expected pages/api/legacy source map to resolve')
 assert(pagesGreetingMeta.sourceMapStatus === 'resolved', 'expected pagesGreeting source map to resolve')
+assert(uxEvidenceMeta.sourceMapStatus === 'resolved', 'expected UxEvidenceDemo source map to resolve')
+assert(uxEvidenceApiMeta.sourceMapStatus === 'resolved', 'expected app/api/ux-evidence source map to resolve')
 assert(pagesMeta.route === '/legacy', 'expected pages/legacy route metadata')
 assert(pagesMeta.routeKind === 'pages-page', 'expected pages/legacy route kind')
 assert(pagesApiMeta.route === '/api/legacy', 'expected pages/api/legacy route metadata')
@@ -100,6 +113,16 @@ assert(
   routeCoverage.routes.some((route) => route.route === '/api/legacy' && route.kind === 'pages-api'),
   'expected route-coverage.json to include /api/legacy pages-api',
 )
+const uxEvidenceRoute = routeCoverage.routes.find((route) => route.route === '/ux-evidence')
+const uxEvidenceApiRoute = routeCoverage.routes.find((route) => route.route === '/api/ux-evidence')
+assert(uxEvidenceRoute, 'expected route-coverage.json to include /ux-evidence')
+assert(uxEvidenceApiRoute, 'expected route-coverage.json to include /api/ux-evidence')
+assert(uxEvidenceRoute.uiEvents.some((event) => event.includes('Open billing modal')), 'expected /ux-evidence to show modal click evidence')
+assert(uxEvidenceRoute.uiEvents.some((event) => event.includes('dialog.open')), 'expected /ux-evidence to show dialog evidence')
+assert(uxEvidenceRoute.uiEvents.some((event) => event.includes('form.validation.error')), 'expected /ux-evidence to show validation evidence')
+assert(uxEvidenceRoute.uiEvents.some((event) => event.includes('collection.items') && event.includes('(100)')), 'expected /ux-evidence to show 100 item collection evidence')
+assert(uxEvidenceRoute.apiCalls.includes('GET /api/ux-evidence 200'), 'expected /ux-evidence to show page-level API call evidence')
+assert(uxEvidenceApiRoute.apiCalls.includes('GET /api/ux-evidence 200'), 'expected /api/ux-evidence to show API call evidence')
 
 const explainClient = execFileSync(
   'node',
@@ -114,6 +137,11 @@ const explainServer = execFileSync(
 const explainPages = execFileSync(
   'node',
   ['dist/cli.js', 'explain', 'pages/legacy.tsx', '--config', 'fixtures/next-app-router/covra.config.ts'],
+  { cwd: root, encoding: 'utf8' },
+)
+const explainUxEvidence = execFileSync(
+  'node',
+  ['dist/cli.js', 'explain', 'src/UxEvidenceDemo.tsx', '--config', 'fixtures/next-app-router/covra.config.ts'],
   { cwd: root, encoding: 'utf8' },
 )
 const routesOutput = execFileSync(
@@ -154,8 +182,14 @@ assert(
   explainPages.includes('UX states   ssr.loaded, modal-or-state.clicked'),
   'expected explain output to show UX states for pages/legacy',
 )
+assert(
+  explainUxEvidence.includes('Route       /ux-evidence'),
+  'expected explain output to show route mapping for UxEvidenceDemo',
+)
 assert(routesOutput.includes('Route Coverage'), 'expected routes command to print route coverage')
 assert(routesOutput.includes('/legacy'), 'expected routes command to include /legacy')
 assert(routesOutput.includes('/api/legacy'), 'expected routes command to include /api/legacy')
+assert(routesOutput.includes('/ux-evidence'), 'expected routes command to include /ux-evidence')
+assert(routesOutput.includes('/api/ux-evidence'), 'expected routes command to include /api/ux-evidence')
 
 console.log('✓ Next fixture verified: app/pages router + E2E UX dashboard + covra routes/report/check/explain')
