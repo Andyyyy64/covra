@@ -100,17 +100,19 @@ Runtime values:
 - `merged`: merged from another Istanbul coverage file
 - `empty`: included through `all: true` but never executed
 
-## UX State Marks
+## UI Evidence
 
-Use `covraMark()` in Playwright tests when a route has meaningful user-visible states:
+Covra records common user-visible evidence automatically:
 
-```ts
-covraMark(testInfo, { route: '/settings', state: 'modal.open' })
-covraMark(testInfo, { route: '/settings', state: 'validation.error' })
-covraMark(testInfo, { route: '/settings', state: 'permission.denied' })
+```text
+click: button "Settings"
+dialog.open: dialog "Settings"
+form.validation.error: textbox "Email"
+collection.items: section "Review checklist" (100)
+POST /api/settings 200
 ```
 
-The route dashboard shows these states next to `E2E flow`, runtime, and source coverage. This gives reviewers a more useful signal than raw line coverage alone.
+The route dashboard shows this evidence next to `E2E flow`, runtime, and source coverage. This gives reviewers a more useful signal than raw line coverage alone without pretending Covra understands the product's business semantics.
 
 ## Common Failures
 
@@ -183,10 +185,10 @@ Source `Lines`, `Statements`, `Functions`, and `Branches` are Istanbul-compatibl
 
 Use `npx covra routes` and inspect `E2E flow`:
 
-- `covered`: a top-level navigation, API request, or explicit UX mark was observed
+- `covered`: a top-level navigation, UI event, DOM state, API request, or manual UX mark was observed
 - `missing`: no user flow observation was recorded for that route
 
-Also check whether the route was visited only in a happy path. High line coverage does not prove modal, error, empty, loading, permission, or validation states were covered. Use `covraMark()` and inspect route branch coverage.
+Also check whether the route was visited only in a happy path. High line coverage does not prove modal, error, empty, loading, permission, or validation states were covered. UI telemetry should reveal dialogs, API calls, validation errors, and large collections when they actually appear; missing evidence usually means the Playwright flow did not exercise that branch or the UI does not expose a detectable semantic signal.
 
 If unvisited files are absent entirely, the most common cause is `all: false` or overly narrow include globs. Keep `all: true` in CI so unexecuted files are reported as `0%`.
 

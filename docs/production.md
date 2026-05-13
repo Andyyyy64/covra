@@ -111,12 +111,12 @@ This means Covra v0.2.1 can answer:
 
 - which routes were observed by real E2E flows
 - which route files were loaded by browser/server runtime coverage
-- which explicit UX states were marked by tests
+- which UI interactions, DOM states, and API calls were observed per route
 - whether coverage came from browser, server, merged, or empty coverage
 
 It does not claim exact per-test server attribution.
 
-Treat source coverage as a secondary signal in production reviews. `Lines 100%` can happen for a route file that the Next.js server loaded, even when no Playwright navigation or UX state covered that route. Use `E2E flow` and `UX states` as the primary route-level gate.
+Treat source coverage as a secondary signal in production reviews. `Lines 100%` can happen for a route file that the Next.js server loaded, even when no Playwright navigation, UI event, API call, or UX state covered that route. Use `E2E flow`, UI signals, API calls, and `UX states` as the primary route-level gate.
 
 ## Performance Expectations
 
@@ -142,9 +142,10 @@ Before relying on Covra in CI:
 - `npx covra report --check` passes
 - `npx covra routes` shows the expected route files
 - important routes show `E2E flow covered`
+- important buttons/forms/dialogs/API calls appear as UI signals or API calls
 - intentionally untested routes are reviewed as `missing` or excluded from the coverage scope
 - confidence is `100%`
 - included files are intentional
 - `all: true` is enabled
-- important modal/error/empty/loading states are marked with `covraMark()`
+- important modal/error/empty/loading evidence appears in UI signals, DOM states, or API calls
 - raw artifacts are not published publicly

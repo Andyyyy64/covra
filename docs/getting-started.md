@@ -93,7 +93,6 @@ export const test = base.extend({
   ...covraFixture(),
 })
 
-export { covraMark } from 'covra/playwright'
 export { expect }
 ```
 
@@ -103,22 +102,23 @@ Then import from that fixture:
 import { test, expect } from './covra.fixture'
 ```
 
-The fixture starts JavaScript coverage for Chromium pages and writes raw browser V8 artifacts under `.covra/raw/browser`. It also records top-level navigations and API requests so the dashboard can distinguish routes that were actually exercised by E2E flows from route files that were only loaded by the Next.js server.
+The fixture starts JavaScript coverage for Chromium pages and writes raw browser V8 artifacts under `.covra/raw/browser`. It also records top-level navigations, UI interactions, DOM states, and API requests so the dashboard can distinguish routes that were actually exercised by E2E flows from route files that were only loaded by the Next.js server.
 
-To make the UX dashboard more expressive, mark user-visible states inside tests:
+Covra records user-visible evidence automatically. For example, dialogs, validation errors, loading/empty states, collection counts, and API calls are shown as observed UI events, DOM states, and API calls.
+
+The default path does not require annotations:
 
 ```ts
-import { test, expect, covraMark } from './covra.fixture'
+import { test, expect } from './covra.fixture'
 
-test('checkout shows validation errors', async ({ page }, testInfo) => {
-  covraMark(testInfo, { route: '/checkout', state: 'validation.error' })
+test('checkout shows validation errors', async ({ page }) => {
   await page.goto('/checkout')
   await page.getByRole('button', { name: 'Pay' }).click()
   await expect(page.getByText('Card number is required')).toBeVisible()
 })
 ```
 
-State marks are optional. Without them, Covra still reports route, E2E flow, runtime, line, and branch coverage. With them, the dashboard can show which product states were intentionally exercised.
+Manual state marks are optional. Without them, Covra still reports route, E2E flow, observed DOM states, UI event counts, API calls, runtime, line coverage, and branch coverage.
 
 ## 4. Run the Next.js Server Through Covra
 
@@ -184,7 +184,7 @@ This prints route-level coverage for App Router pages, Pages Router pages, route
 
 `E2E flow` is the primary signal:
 
-- `covered`: Playwright navigated to the route, requested the API route, or a test marked the route with `covraMark()`
+- `covered`: Playwright navigated to the route, requested the API route, captured a UI/DOM event for the route, or received a manual state mark
 - `missing`: the route exists in the app, but no observed E2E flow exercised it
 
 Source `Lines` and `Branches` are still shown, but treat them as source-level detail. In Next.js production builds, server-side module loading can make source lines look covered even when a route is missing from the user-flow perspective.

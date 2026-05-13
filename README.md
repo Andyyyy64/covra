@@ -2,7 +2,7 @@
 
 E2E UX coverage dashboard for Playwright-powered Next.js apps.
 
-Covra shows which product routes your real Playwright user flows actually exercise. It collects browser navigations, API requests, explicit UX state marks, browser runtime coverage, and Next.js server runtime coverage, maps bundled JavaScript back to source files, writes a route-first UX dashboard, keeps Istanbul-compatible artifacts, and gives you diagnostics when the numbers look suspicious.
+Covra shows which product routes your real Playwright user flows actually exercise. It collects browser navigations, UI interactions, DOM state observations, API requests, browser runtime coverage, and Next.js server runtime coverage. It maps bundled JavaScript back to source files, writes a route-first UX dashboard, keeps Istanbul-compatible artifacts, and gives you diagnostics when the numbers look suspicious.
 
 It is intentionally not a Vitest plugin. Vitest, Jest, c8, nyc, Codecov, and Sonar can consume or merge with Covra through standard Istanbul artifacts.
 
@@ -23,10 +23,11 @@ Covra v0.2.1 is production-ready inside this explicit envelope:
 - webpack production builds for stable source maps
 - TypeScript, TSX, JavaScript, and JSX source files
 - route-first E2E UX dashboard as the main HTML report
-- E2E flow coverage based on observed navigations, API requests, and UX state marks
+- E2E flow coverage based on observed navigations, UI interactions, DOM states, API requests, and optional manual UX states
 - route coverage JSON for custom dashboards
 - HTML, LCOV, JSON, JSON summary, and text reports for source-level consumers
-- explicit UX state marks from Playwright tests through `covraMark()`
+- automatic UI telemetry for clicks, changes, submits, Enter/Escape/Space keys, dialogs, disclosures, alerts, validation errors, loading/empty/permission states, large lists/tables, and API calls
+- optional manual UX state annotations through `covraMark()`
 - threshold checks without a Vitest dependency
 - optional merge of any Istanbul `coverage-final.json`
 - `routes`, `doctor`, `doctor --post-run`, `explain`, `run`, `report`, `check`, `clean`, `init`, and `start-server`
@@ -78,7 +79,6 @@ export const test = base.extend({
   ...covraFixture(),
 })
 
-export { covraMark } from 'covra/playwright'
 export { expect }
 ```
 
@@ -88,18 +88,19 @@ Then import from that fixture in E2E specs:
 import { test, expect } from './covra.fixture'
 ```
 
-Optionally mark user-visible states in tests so the dashboard can show more than raw code execution:
+Covra automatically records common UI operations and state changes as observed evidence:
 
 ```ts
-import { test, expect, covraMark } from './covra.fixture'
+import { test, expect } from './covra.fixture'
 
-test('user can open settings modal', async ({ page }, testInfo) => {
-  covraMark(testInfo, { route: '/settings', state: 'modal.open' })
+test('user can open settings modal', async ({ page }) => {
   await page.goto('/settings')
   await page.getByRole('button', { name: 'Settings' }).click()
   await expect(page.getByRole('dialog')).toBeVisible()
 })
 ```
+
+That flow can appear as evidence such as `click: button "Settings"` and `dialog.open: dialog "Settings"`. Covra does not claim that those observations prove every semantic state of the product.
 
 Enable coverage source maps only during coverage runs:
 
@@ -160,10 +161,10 @@ CLI output also prints route coverage. `E2E flow` is the primary UX signal. Sour
 
 ```text
 Route Coverage
-Route              Kind          E2E flow     Lines              Branches           Runtime                UX states  File
-/                  app-page      covered      100.0% (12/12)    100.0% (0/0)       browser, server        2          app/page.tsx
-/dashboard         app-page      missing      100.0% (18/18)    100.0% (0/0)       server, merged         0          app/dashboard/page.tsx
-/api/legacy        pages-api     covered      100.0% (8/8)      100.0% (0/0)       browser, server        1          pages/api/legacy.ts
+Route              Kind          E2E flow     Lines              Branches           Runtime                UX states  UI events  API calls  File
+/                  app-page      covered      100.0% (12/12)    100.0% (0/0)       browser, server        2          4          1          app/page.tsx
+/dashboard         app-page      missing      100.0% (18/18)    100.0% (0/0)       server, merged         0          0          0          app/dashboard/page.tsx
+/api/legacy        pages-api     covered      100.0% (8/8)      100.0% (0/0)       browser, server        2          1          1          pages/api/legacy.ts
 ```
 
 In that example, `/dashboard` has source lines mapped from server coverage, but the route is still `missing` because no Playwright user flow navigated to it or marked it. This is intentional: Covra treats source coverage as supporting detail, not as proof that a user journey is covered.
@@ -218,7 +219,9 @@ See [Configuration Reference](docs/configuration.md).
 - [CLI Reference](docs/cli.md)
 - [Configuration Reference](docs/configuration.md)
 - [Reports, Thresholds, and Merge](docs/reports-thresholds.md)
+- [E2E Flow Examples](docs/e2e-flow-examples.md)
 - [Diagnostics and Troubleshooting](docs/diagnostics.md)
+- [Smoke Testing](docs/smoke-testing.md)
 - [Architecture](docs/architecture.md)
 - [Production Guide](docs/production.md)
 - [Release Process](docs/release.md)

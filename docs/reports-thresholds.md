@@ -24,7 +24,7 @@ coverage/covra/covra-meta.json
 
 `index.html` and `dashboard.html` are Covra's E2E UX dashboard. The Istanbul-compatible source-level report remains available through generated source pages and LCOV output.
 
-`route-coverage.json` contains the route dashboard model. `covra-meta.json` is Covra-specific metadata used by `covra explain`. It records runtime attribution, generated URLs, source-map status, route mapping, tests, and explicit UX states.
+`route-coverage.json` contains the route dashboard model. `covra-meta.json` is Covra-specific metadata used by `covra explain`. It records runtime attribution, generated URLs, source-map status, route mapping, tests, observed DOM states, UI events, and API calls.
 
 ## Route-first Dashboard
 
@@ -36,13 +36,17 @@ The dashboard is the primary human-facing report. It groups coverage by:
 - E2E flow status
 - browser/server/merged/empty runtime
 - line and branch coverage
-- explicit UX state marks from `covraMark()`
+- observed DOM states
+- automatic UI events
+- correlated API calls
+- optional manual UX state marks from `covraMark()`
 
 `E2E flow` is the main coverage signal for product UX. A route is `covered` when Covra observes one of these during Playwright:
 
 - a top-level page navigation for the route
 - an API request for the route
-- an explicit `covraMark()` for the route
+- a captured UI interaction or DOM state for the route
+- a manually annotated UX state for the route
 
 Routes without those observations are `missing`, even if source lines appear covered through Next.js server module loading. This matters for real apps: production server coverage can prove that a file was loaded or rendered, but it does not prove that an end user journey intentionally exercised that route.
 
@@ -51,13 +55,31 @@ Source-level Istanbul metrics are still present, but they are supporting detail 
 Example:
 
 ```text
-Route              Kind          E2E flow     Lines              Branches           Runtime                UX states  File
-/                  app-page      covered      100.0% (12/12)    100.0% (0/0)       browser, server        2          app/page.tsx
-/dashboard         app-page      missing      100.0% (18/18)    100.0% (0/0)       server, merged         0          app/dashboard/page.tsx
-/api/counter       app-route     covered      100.0% (9/9)      100.0% (0/0)       browser, server        0          app/api/counter/route.ts
+Route              Kind          E2E flow     Lines              Branches           Runtime                UX states  UI events  API calls  File
+/                  app-page      covered      100.0% (12/12)    100.0% (0/0)       browser, server        2          3          1          app/page.tsx
+/dashboard         app-page      missing      100.0% (18/18)    100.0% (0/0)       server, merged         0          0          0          app/dashboard/page.tsx
+/api/counter       app-route     covered      100.0% (9/9)      100.0% (0/0)       browser, server        2          0          1          app/api/counter/route.ts
 ```
 
 The `/dashboard` row is the important case: source coverage is `100%`, but E2E flow is still `missing`.
+
+## UI Telemetry
+
+Covra records observable browser facts. It does not try to invent product meaning from them.
+
+Examples of evidence Covra can show:
+
+- `click: button "Bulk approve"`
+- `dialog.open: dialog "Approve items"`
+- `collection.items: section "Review checklist" (100)`
+- `POST /api/users 201`
+
+```ts
+await page.getByRole('button', { name: 'Bulk approve' }).click()
+await expect(page.getByRole('dialog', { name: 'Approve 100 items' })).toBeVisible()
+```
+
+This is intentionally evidence-first. It lets reviewers see what actually happened without pretending that Covra understands the product's business semantics.
 
 ## Built-in Reports
 
@@ -183,4 +205,4 @@ Covra converts V8 runtime ranges to Istanbul-compatible reports. Lines, statemen
 
 Use branch thresholds, but keep this difference in mind when comparing Covra to unit-test coverage from another provider.
 
-For E2E UX review, combine branch gaps with `E2E flow` and `UX states`. Branch coverage can hint at unvisited conditionals, while UX state marks let you name the product states that matter: modal open, validation error, empty state, loading state, permission denied, and similar user-visible paths.
+For E2E UX review, combine branch gaps with `E2E flow`, UI events, DOM states, and API calls. Branch coverage can hint at unvisited conditionals, while telemetry shows the user-visible evidence that was actually observed.

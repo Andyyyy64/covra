@@ -155,10 +155,12 @@ This is the fastest way to inspect E2E UX coverage in the terminal. It shows:
 - E2E flow status
 - line and branch coverage for that route file
 - browser/server runtime attribution
-- number of explicit UX states
+- number of observed/manual UX states
+- number of automatic UI events
+- number of observed API calls
 - source file
 
-`E2E flow` is based on observed top-level navigations, API requests, and explicit `covraMark()` route states. It is intentionally separate from source line coverage, so routes can be `missing` even when source lines show as covered by server runtime loading.
+`E2E flow` is based on observed top-level navigations, UI interactions, DOM states, API requests, and optional manual route states. It is intentionally separate from source line coverage, so routes can be `missing` even when source lines show as covered by server runtime loading.
 
 ## `covra explain <file>`
 
@@ -173,7 +175,8 @@ It prints:
 - line, statement, function, and branch coverage
 - runtime attribution
 - route mapping
-- explicit UX states
+- observed/manual UX states
+- UI events and API calls
 - source-map status
 - generated bundle sources
 - uncovered lines

@@ -8,10 +8,12 @@ Use this documentation in this order:
 2. [Next.js and Playwright Integration](nextjs-playwright.md) for the integration details behind that setup.
 3. [Configuration Reference](configuration.md) when you need to tune include globs, reports, source maps, thresholds, or merge inputs.
 4. [Reports, Thresholds, and Merge](reports-thresholds.md) when wiring the UX dashboard, CI gates, Codecov, Sonar, Vitest, Jest, c8, or nyc.
-5. [Diagnostics and Troubleshooting](diagnostics.md) when coverage is missing, paths look wrong, or confidence is below 100%.
-6. [Production Guide](production.md) before using Covra as a CI gate.
-7. [Architecture](architecture.md) when changing Covra itself or debugging a deep source-map issue.
-8. [Release Process](release.md) when cutting or validating a release.
+5. [E2E Flow Examples](e2e-flow-examples.md) when you want concrete code-level examples of what Covra can and cannot detect.
+6. [Diagnostics and Troubleshooting](diagnostics.md) when coverage is missing, paths look wrong, or confidence is below 100%.
+7. [Production Guide](production.md) before using Covra as a CI gate.
+8. [Smoke Testing](smoke-testing.md) when validating Covra against external OSS projects.
+9. [Architecture](architecture.md) when changing Covra itself or debugging a deep source-map issue.
+10. [Release Process](release.md) when cutting or validating a release.
 
 ## Current Support Envelope
 

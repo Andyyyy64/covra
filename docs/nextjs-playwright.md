@@ -37,7 +37,6 @@ export const test = base.extend({
   ...covraFixture(),
 })
 
-export { covraMark } from 'covra/playwright'
 export { expect }
 ```
 
@@ -49,8 +48,9 @@ The fixture:
 - tracks pages created in the browser context
 - writes raw browser artifacts after each test
 - tolerates pages that close before coverage can stop
-- records optional UX state marks from `covraMark()`
-- records top-level navigations and API requests for E2E flow coverage
+- records top-level navigations, UI interactions, DOM states, and API requests for E2E flow coverage
+
+Automatic UI telemetry includes common events such as clicks, changes, submits, Enter/Escape/Space key actions, open dialogs, disclosures, alerts, validation errors, loading/empty/permission states, and large list/table/checklist surfaces. Covra reports these as evidence, not as guessed product semantics.
 
 Firefox and WebKit tests may still run in your suite, but Covra v0.2.1 does not collect coverage from them.
 
@@ -129,22 +129,21 @@ Supported in v0.2.1:
 
 Pages Router support is verified by Covra's local release fixture.
 
-## UX State Marks
+## UI Evidence
 
-Route coverage is strongest when tests name the user-visible state they exercised:
+Route coverage is strongest when the report shows concrete evidence from the browser itself:
 
 ```ts
-import { test, expect, covraMark } from './covra.fixture'
+import { test, expect } from './covra.fixture'
 
-test('legacy page clicked state', async ({ page }, testInfo) => {
-  covraMark(testInfo, { route: '/legacy', state: 'clicked' })
+test('legacy page clicked state', async ({ page }) => {
   await page.goto('/legacy')
   await page.getByRole('button', { name: 'Legacy idle' }).click()
   await expect(page.getByRole('button', { name: 'Legacy clicked' })).toBeVisible()
 })
 ```
 
-Use state names that match your product language: `empty`, `error`, `loading`, `modal.open`, `permission.denied`, `validation.error`, `success`, and so on.
+That kind of flow can produce evidence such as `click: button "Legacy idle"`, a visible dialog/list/alert observation, and any API call observed during the page flow.
 
 ## Source Maps and webpack
 

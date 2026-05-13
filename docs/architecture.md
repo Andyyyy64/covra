@@ -5,8 +5,7 @@ Covra is a small orchestration layer around runtime coverage and a route-first E
 ```text
 Playwright Chromium tests
   -> browser V8 coverage artifacts
-  -> navigation and API request observations
-  -> explicit UX state marks
+  -> navigation, UI, DOM, and API observations
 
 Next.js server process
   -> Node V8 coverage artifacts
@@ -62,6 +61,7 @@ Each artifact includes:
 - retry
 - status
 - observed top-level navigations
+- observed UI interactions and DOM states
 - observed API requests
 - V8 coverage entries
 
@@ -125,7 +125,7 @@ This powers `covra explain` with:
 - generated source URLs
 - source-map status
 - route mapping
-- explicit UX states
+- observed/manual UX states
 
 Runtime attribution is file-level:
 
@@ -137,8 +137,9 @@ Runtime attribution is file-level:
 Route observations are route-level:
 
 - observed navigations
+- observed UI interactions and DOM states
 - observed API requests
-- explicit UX state marks from `covraMark()`
+- manual UX state marks from `covraMark()`
 
 ## Route Dashboard
 
@@ -155,8 +156,10 @@ Covra maps source files to route paths:
 `E2E flow` is not derived from source line coverage. It is derived from observed user-flow evidence:
 
 - top-level navigations
+- UI interactions
+- DOM states such as open dialogs, disclosures, alerts, and large collections
 - API requests
-- explicit UX state marks
+- manual UX state marks
 
 This distinction is important for Next.js. Server source coverage can show a route file as covered because a server module was loaded or rendered, while `E2E flow` can still mark the route as `missing` if no Playwright user journey exercised it.
 

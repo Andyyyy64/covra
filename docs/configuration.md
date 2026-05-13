@@ -51,6 +51,8 @@ export default defineCovraConfig({
       project: 'chromium',
       resetOnNavigation: false,
       reportAnonymousScripts: false,
+      trackUiEvents: true,
+      maxUiEvents: 2000,
     },
     server: {
       enabled: true,
@@ -136,10 +138,24 @@ Default:
   project: 'chromium',
   resetOnNavigation: false,
   reportAnonymousScripts: false,
+  trackUiEvents: true,
+  maxUiEvents: 2000,
 }
 ```
 
 The Playwright fixture only collects browser coverage for Chromium. `resetOnNavigation: false` is important for E2E flows that navigate across pages.
+
+When `trackUiEvents` is enabled, Covra records common browser-side UX telemetry in the same raw artifact as V8 coverage:
+
+- clicks
+- changes
+- submits
+- Enter, Escape, and Space key actions
+- open dialogs, disclosures, menus, alerts, and live regions
+- large or semantic lists, tables, grids, and checklist-like surfaces
+- API/network calls correlated to the current page route when possible
+
+`maxUiEvents` caps the number of UI telemetry events stored per Playwright test. Increase it for very long flows, or lower it if raw artifacts become noisy.
 
 ## `collect.server`
 

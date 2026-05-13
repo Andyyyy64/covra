@@ -71,6 +71,8 @@ The smoke test injects Covra through normal package imports, runs the upstream P
 
 This test is intentionally networked.
 
+For larger manual OSS smoke runs, see [Smoke Testing](smoke-testing.md). Large apps can expose app-level environment, compile-time, or memory issues that should be separated from Covra integration failures.
+
 ## Docs Gate
 
 `npm run check:docs` validates local Markdown links in:
