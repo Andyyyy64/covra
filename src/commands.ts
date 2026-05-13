@@ -15,7 +15,7 @@ import type { Diagnostic, NormalizedCovraConfig } from './types.js'
 import { browserRawDir, serverRawDir } from './artifacts.js'
 import { absoluteFromRoot, normalizeCoverageFilePath, relativeToRoot, slash } from './path-utils.js'
 import { routeInfoForFile } from './routes.js'
-import { buildRouteCoverageRows, printRouteCoverageRows, writeUxDashboard } from './route-report.js'
+import { buildRouteCoverageRows, printRouteCoverageRows, writeUxDashboard, type RouteCoverageRow } from './route-report.js'
 
 const { createCoverageMap } = istanbulCoverage
 
@@ -228,13 +228,43 @@ export async function explainCommand(file: string, options: { cwd?: string; conf
   console.log('')
   console.log(`Runtime     ${fileMeta?.runtimes.join(', ') || 'unknown'}`)
   console.log(`Source map  ${fileMeta?.sourceMapStatus ?? 'unknown'}`)
-  const routeInfo = routeInfoForFile(config.rootDir, normalized)
-  if (routeInfo) {
-    console.log(`Route       ${routeInfo.route} (${routeInfo.kind})`)
+  const routeRows = buildRouteCoverageRows(config, coverageMap, meta)
+  const explainedRoutes = routesForExplainedFile(config, normalized, fileMeta, routeRows)
+  const routeMeta = explainedRoutes
+    .map((route) => meta?.routes?.find((item) => item.route === route.route))
+    .filter((item): item is NonNullable<typeof item> => Boolean(item))
+  if (explainedRoutes.length === 1) {
+    const route = explainedRoutes[0]!
+    console.log(`Route       ${route.route} (${route.kind})`)
+  } else if (explainedRoutes.length > 1) {
+    console.log(`Routes      ${explainedRoutes.map((route) => `${route.route} (${route.kind})`).join(', ')}`)
   }
 
-  if (fileMeta?.uxStates?.length) {
-    console.log(`UX states   ${fileMeta.uxStates.join(', ')}`)
+  const uxStates = [...(fileMeta?.uxStates ?? []), ...routeMeta.flatMap((route) => route.uxStates ?? [])]
+  if (uxStates.length) {
+    console.log(`UX states   ${uniqueStrings(uxStates).join(', ')}`)
+  }
+
+  const uiEvents = uniqueStrings(routeMeta.flatMap((route) => route.uiEvents ?? []))
+  if (uiEvents.length) {
+    console.log(`UI events   ${uiEvents.length}`)
+    for (const event of uiEvents.slice(0, 8)) {
+      console.log(pc.dim(`  ${event}`))
+    }
+    if (uiEvents.length > 8) {
+      console.log(pc.dim(`  ...and ${uiEvents.length - 8} more`))
+    }
+  }
+
+  const apiCalls = uniqueStrings(routeMeta.flatMap((route) => route.apiCalls ?? []))
+  if (apiCalls.length) {
+    console.log(`API calls   ${apiCalls.length}`)
+    for (const call of apiCalls.slice(0, 8)) {
+      console.log(pc.dim(`  ${call}`))
+    }
+    if (apiCalls.length > 8) {
+      console.log(pc.dim(`  ...and ${apiCalls.length - 8} more`))
+    }
   }
 
   if (fileMeta?.tests?.length) {
@@ -300,7 +330,7 @@ export async function initCommand(options: { cwd?: string; dryRun?: boolean } = 
     ],
     [
       'e2e/covra.fixture.ts',
-      `import { test as base, expect } from '@playwright/test'\nimport { covraFixture } from 'covra/playwright'\n\nexport const test = base.extend({\n  ...covraFixture(),\n})\n\nexport { covraMark } from 'covra/playwright'\nexport { expect }\n`,
+      `import { test as base, expect } from '@playwright/test'\nimport { covraFixture } from 'covra/playwright'\n\nexport const test = base.extend({\n  ...covraFixture(),\n})\n\nexport { expect }\n`,
     ],
   ])
 
@@ -485,6 +515,95 @@ function formatLineRanges(lines: number[]): string {
 
 function formatPct(value: number): string {
   return `${value.toFixed(2).padStart(6)}%`
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values)]
+}
+
+type ExplainedRoute = Pick<RouteCoverageRow, 'route' | 'kind'>
+
+function routesForExplainedFile(
+  config: NormalizedCovraConfig,
+  file: string,
+  fileMeta: { generatedUrls?: string[] } | undefined,
+  routeRows: RouteCoverageRow[],
+): ExplainedRoute[] {
+  const routes = new Map<string, ExplainedRoute>()
+  const rowsByRoute = new Map(routeRows.map((row) => [row.route, row]))
+  const directRoute = routeInfoForFile(config.rootDir, file)
+
+  if (directRoute) {
+    routes.set(directRoute.route, directRoute)
+  }
+
+  for (const generatedUrl of fileMeta?.generatedUrls ?? []) {
+    const route = routeFromGeneratedUrl(generatedUrl)
+    if (!route || routes.has(route)) continue
+    const row = rowsByRoute.get(route)
+    if (row) routes.set(route, { route: row.route, kind: row.kind })
+  }
+
+  return [...routes.values()].sort((a, b) => a.route.localeCompare(b.route))
+}
+
+function routeFromGeneratedUrl(value: string): string | undefined {
+  const normalized = stripUrlSuffix(decodeMaybe(slash(value)))
+
+  const appStatic = normalized.match(/\/_next\/static\/chunks\/app\/(.+)-[^/]+\.js$/)
+  if (appStatic?.[1]) return appRouteFromGeneratedPath(appStatic[1])
+
+  const pagesStatic = normalized.match(/\/_next\/static\/chunks\/pages\/(.+)-[^/]+\.js$/)
+  if (pagesStatic?.[1]) return pagesRouteFromGeneratedPath(pagesStatic[1])
+
+  const serverAppToken = '/.next/server/app/'
+  const serverAppIndex = normalized.indexOf(serverAppToken)
+  if (serverAppIndex >= 0) {
+    return appRouteFromGeneratedPath(normalized.slice(serverAppIndex + serverAppToken.length).replace(/\.js$/, ''))
+  }
+
+  const serverPagesToken = '/.next/server/pages/'
+  const serverPagesIndex = normalized.indexOf(serverPagesToken)
+  if (serverPagesIndex >= 0) {
+    return pagesRouteFromGeneratedPath(normalized.slice(serverPagesIndex + serverPagesToken.length).replace(/\.js$/, ''))
+  }
+
+  return undefined
+}
+
+function appRouteFromGeneratedPath(value: string): string | undefined {
+  const parts = value.split('/').filter(Boolean)
+  const endpoint = parts.at(-1)
+  const routeParts = endpoint && ['page', 'route', 'layout', 'template', 'default'].includes(endpoint)
+    ? parts.slice(0, -1)
+    : parts
+  const publicParts = routeParts.filter((part) => !part.startsWith('(') && !part.startsWith('@'))
+  return routeFromSegments(publicParts)
+}
+
+function pagesRouteFromGeneratedPath(value: string): string | undefined {
+  const parts = value.split('/').filter(Boolean)
+  if (parts.length === 0) return '/'
+  if (parts.some((part) => part.startsWith('_'))) return undefined
+  const basename = parts.at(-1)
+  const routeParts = basename === 'index' ? parts.slice(0, -1) : parts
+  return routeFromSegments(routeParts)
+}
+
+function routeFromSegments(segments: string[]): string {
+  return `/${segments.filter(Boolean).join('/')}`.replace(/\/+$/, '') || '/'
+}
+
+function stripUrlSuffix(value: string): string {
+  return value.split('#')[0]!.split('?')[0]!
+}
+
+function decodeMaybe(value: string): string {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return value
+  }
 }
 
 function stripDashDash(command: string[]): string[] {

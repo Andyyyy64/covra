@@ -56,6 +56,8 @@ export function normalizeConfig(config: CovraConfig, cwd = process.cwd()): Norma
     project: 'chromium',
     resetOnNavigation: false,
     reportAnonymousScripts: false,
+    trackUiEvents: true,
+    maxUiEvents: 2000,
   })
 
   const server = normalizeBooleanOrOptions(config.collect?.server, {

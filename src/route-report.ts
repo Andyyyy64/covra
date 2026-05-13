@@ -21,6 +21,8 @@ export type RouteCoverageRow = {
   sourceMapStatus: string
   tests: string[]
   uxStates: string[]
+  uiEvents: string[]
+  apiCalls: string[]
   sourceHtmlPath: string
 }
 
@@ -41,6 +43,8 @@ export type RouteCoverageReport = {
     withBrowserRuntime: number
     withServerRuntime: number
     withUxStates: number
+    withUiEvents: number
+    withApiCalls: number
     branchGaps: number
   }
   routes: RouteCoverageRow[]
@@ -68,8 +72,10 @@ export function buildRouteCoverageRows(
       const routeTests = unique(metaRoutes.flatMap((route) => route.tests))
       const tests = unique([...(metaFile?.tests ?? []), ...routeTests])
       const uxStates = unique([...(metaFile?.uxStates ?? []), ...metaRoutes.flatMap((route) => route.uxStates)])
+      const uiEvents = unique(metaRoutes.flatMap((route) => route.uiEvents ?? []))
+      const apiCalls = unique(metaRoutes.flatMap((route) => route.apiCalls ?? []))
       const runtimes = unique([...(metaFile?.runtimes ?? []), ...metaRoutes.flatMap((route) => route.runtimes ?? [])])
-      const observed = routeTests.length > 0 || uxStates.length > 0
+      const observed = routeTests.length > 0 || uxStates.length > 0 || uiEvents.length > 0 || apiCalls.length > 0
 
       return {
         route: routeInfo.route,
@@ -90,6 +96,8 @@ export function buildRouteCoverageRows(
         sourceMapStatus: metaFile?.sourceMapStatus ?? 'unknown',
         tests,
         uxStates,
+        uiEvents,
+        apiCalls,
         sourceHtmlPath: `${slash(displayFile)}.html`,
       }
     })
@@ -105,10 +113,10 @@ function isPrimaryRouteKind(kind: RouteInfo['kind']): boolean {
 
 function routeMetaForRoute(
   route: string,
-  metaByRoute: Map<string, { runtimes?: string[]; tests: string[]; uxStates: string[] }>,
-): Array<{ runtimes?: string[]; tests: string[]; uxStates: string[] }> {
+  metaByRoute: Map<string, { runtimes?: string[]; tests: string[]; uxStates: string[]; uiEvents?: string[]; apiCalls?: string[] }>,
+): Array<{ runtimes?: string[]; tests: string[]; uxStates: string[]; uiEvents?: string[]; apiCalls?: string[] }> {
   const aliases = routeAliases(route)
-  const matches: Array<{ runtimes?: string[]; tests: string[]; uxStates: string[] }> = []
+  const matches: Array<{ runtimes?: string[]; tests: string[]; uxStates: string[]; uiEvents?: string[]; apiCalls?: string[] }> = []
 
   for (const alias of aliases) {
     const meta = metaByRoute.get(alias)
@@ -151,6 +159,8 @@ export async function writeUxDashboard(options: {
       withBrowserRuntime: rows.filter((row) => row.runtimes.includes('browser')).length,
       withServerRuntime: rows.filter((row) => row.runtimes.includes('server')).length,
       withUxStates: rows.filter((row) => row.uxStates.length > 0).length,
+      withUiEvents: rows.filter((row) => row.uiEvents.length > 0).length,
+      withApiCalls: rows.filter((row) => row.apiCalls.length > 0).length,
       branchGaps: rows.filter((row) => row.branches.covered < row.branches.total).length,
     },
     routes: rows,
@@ -179,6 +189,8 @@ export function printRouteCoverageRows(rows: RouteCoverageRow[], limit = 20): vo
       'Branches'.padEnd(18),
       'Runtime'.padEnd(22),
       'UX states'.padEnd(9),
+      'UI events'.padEnd(9),
+      'API calls'.padEnd(9),
       'File',
     ].join('  '),
   )
@@ -193,6 +205,8 @@ export function printRouteCoverageRows(rows: RouteCoverageRow[], limit = 20): vo
         formatMetric(row.branches).padEnd(18),
         (row.runtimes.join(', ') || 'unknown').padEnd(22),
         String(row.uxStates.length).padEnd(9),
+        String(row.uiEvents.length).padEnd(9),
+        String(row.apiCalls.length).padEnd(9),
         slash(row.displayFile),
       ].join('  '),
     )
@@ -239,7 +253,7 @@ function renderDashboard(report: RouteCoverageReport): string {
     a { color: var(--accent); text-decoration: none; }
     a:hover { text-decoration: underline; }
     .meta { text-align: right; color: var(--muted); font-size: 13px; }
-    .cards { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .cards { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
     .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; }
     .card span { display: block; color: var(--muted); font-size: 12px; margin-bottom: 8px; }
     .card strong { display: block; font-size: 24px; line-height: 1; }
@@ -295,6 +309,7 @@ function renderDashboard(report: RouteCoverageReport): string {
       ${renderCard('Browser runtime', report.totals.withBrowserRuntime)}
       ${renderCard('Server runtime', report.totals.withServerRuntime)}
       ${renderCard('UX states', report.totals.withUxStates)}
+      ${renderCard('API calls', report.totals.withApiCalls)}
       ${renderCard('Branch gaps', report.totals.branchGaps)}
     </section>
     <section class="layout">
@@ -308,7 +323,8 @@ function renderDashboard(report: RouteCoverageReport): string {
               <th>Lines</th>
               <th>Branches</th>
               <th>Runtime</th>
-              <th>Observed UX states</th>
+              <th>Observed UX signals</th>
+              <th>API calls</th>
               <th>Source</th>
             </tr>
           </thead>
@@ -323,7 +339,7 @@ function renderDashboard(report: RouteCoverageReport): string {
           <ol>
             ${worstRoutes || '<li><span>All routes observed</span><strong>100%</strong></li>'}
           </ol>
-          <p>E2E flow is based on observed top-level navigations, API requests, and explicit UX state marks. Source lines remain available as a secondary signal.</p>
+          <p>E2E flow is based on observed top-level navigations, API requests, UI interactions, DOM states, and optional manual UX states. Source lines remain available as a secondary signal.</p>
           <div class="actions">
             <a class="button" href="route-coverage.json">Route JSON</a>
             <a class="button" href="lcov-report/index.html">LCOV HTML</a>
@@ -347,7 +363,8 @@ function renderRouteRow(row: RouteCoverageRow): string {
     <td>${renderMetric(row.lines)}</td>
     <td>${renderMetric(row.branches)}</td>
     <td>${renderRuntime(row.runtimes)}</td>
-    <td>${renderStates(row.uxStates, row.tests)}</td>
+    <td>${renderSignals(row)}</td>
+    <td>${renderApiCalls(row.apiCalls)}</td>
     <td><a href="${escapeHtml(row.sourceHtmlPath)}">${escapeHtml(row.displayFile)}</a><div class="muted">${escapeHtml(row.sourceMapStatus)}</div></td>
   </tr>`
 }
@@ -364,11 +381,19 @@ function renderRuntime(runtimes: string[]): string {
     : '<span class="muted">unknown</span>'
 }
 
-function renderStates(states: string[], tests: string[]): string {
-  const chips = states.slice(0, 8).map((state) => `<span class="chip">${escapeHtml(state)}</span>`).join('')
-  const overflow = states.length > 8 ? `<span class="muted">+${states.length - 8} more</span>` : ''
-  const testsText = tests.length > 0 ? `<div class="muted">${tests.length} test${tests.length === 1 ? '' : 's'}</div>` : ''
-  return chips || testsText ? `${chips}${overflow}${testsText}` : '<span class="muted">No explicit states</span>'
+function renderSignals(row: RouteCoverageRow): string {
+  const signals = unique([...row.uxStates, ...row.uiEvents])
+  const chips = signals.slice(0, 8).map((state) => `<span class="chip">${escapeHtml(state)}</span>`).join('')
+  const overflow = signals.length > 8 ? `<span class="muted">+${signals.length - 8} more</span>` : ''
+  const testsText = row.tests.length > 0 ? `<div class="muted">${row.tests.length} test${row.tests.length === 1 ? '' : 's'}</div>` : ''
+  return chips || testsText ? `${chips}${overflow}${testsText}` : '<span class="muted">No UI signals</span>'
+}
+
+function renderApiCalls(apiCalls: string[]): string {
+  if (apiCalls.length === 0) return '<span class="muted">none</span>'
+  const chips = apiCalls.slice(0, 6).map((call) => `<span class="runtime">${escapeHtml(call)}</span>`).join('')
+  const overflow = apiCalls.length > 6 ? `<span class="muted">+${apiCalls.length - 6} more</span>` : ''
+  return `${chips}${overflow}`
 }
 
 function formatMetric(metric: CoverageMetricSummary): string {

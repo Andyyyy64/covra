@@ -29,6 +29,8 @@ export type BrowserCollectOptions = {
   project?: string
   resetOnNavigation?: boolean
   reportAnonymousScripts?: boolean
+  trackUiEvents?: boolean
+  maxUiEvents?: number
 }
 
 export type ServerCollectOptions = {
@@ -146,6 +148,33 @@ export type BrowserCoverageArtifact = {
   entries: PlaywrightJSCoverageEntry[]
   navigations?: string[]
   requests?: string[]
+  uiEvents?: BrowserUiEvent[]
+}
+
+export type BrowserUiEvent = {
+  kind: 'interaction' | 'dom-state' | 'network'
+  type: string
+  at: number
+  url?: string
+  route?: string
+  target?: {
+    tag?: string
+    role?: string
+    name?: string
+    testId?: string
+    selector?: string
+  }
+  key?: string
+  checked?: boolean
+  count?: number
+  state?: string
+  request?: {
+    method?: string
+    url: string
+    route?: string
+    resourceType?: string
+    status?: number
+  }
 }
 
 export type NodeV8CoverageFile = {
@@ -173,4 +202,6 @@ export type RouteRuntimeInfo = {
   runtimes: Set<CoverageRuntime>
   tests: Set<string>
   uxStates: Set<string>
+  uiEvents: Set<string>
+  apiCalls: Set<string>
 }

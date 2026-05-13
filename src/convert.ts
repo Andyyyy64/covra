@@ -7,6 +7,7 @@ import v8ToIstanbul from 'v8-to-istanbul'
 import istanbulCoverage from 'istanbul-lib-coverage'
 import type {
   BrowserCoverageArtifact,
+  BrowserUiEvent,
   Diagnostic,
   FileRuntimeInfo,
   NodeV8CoverageFile,
@@ -105,6 +106,9 @@ async function addBrowserCoverage(
     }
     for (const request of artifact.requests ?? []) {
       markRouteFromUrl(routeInfo, request, artifact.test, { apiOnly: true })
+    }
+    for (const event of artifact.uiEvents ?? []) {
+      markRouteFromUiEvent(routeInfo, event, artifact.test)
     }
 
     for (const entry of artifact.entries) {
@@ -462,6 +466,8 @@ function markRouteRuntime(routeInfo: Map<string, RouteRuntimeInfo>, test?: Brows
           runtimes: new Set(),
           tests: new Set(),
           uxStates: new Set(),
+          uiEvents: new Set(),
+          apiCalls: new Set(),
         } satisfies RouteRuntimeInfo)
 
       if (title) existing.tests.add(title)
@@ -487,16 +493,94 @@ function markRouteFromUrl(
 
   const existing =
     routeInfo.get(route) ??
+        ({
+          route,
+          runtimes: new Set(),
+          tests: new Set(),
+          uxStates: new Set(),
+          uiEvents: new Set(),
+          apiCalls: new Set(),
+        } satisfies RouteRuntimeInfo)
+
+  existing.runtimes.add('browser')
+  if (title) existing.tests.add(title)
+  routeInfo.set(route, existing)
+}
+
+function markRouteFromUiEvent(
+  routeInfo: Map<string, RouteRuntimeInfo>,
+  event: BrowserUiEvent,
+  test?: BrowserCoverageArtifact['test'],
+): void {
+  if (event.kind === 'network') {
+    if (!event.request || !isRelevantApiCall(event.request)) return
+    const pageRoute = event.route ?? routeFromUrl(event.url ?? '')
+    if (pageRoute) {
+      const existing = ensureRouteRuntime(routeInfo, pageRoute)
+      existing.runtimes.add('browser')
+      if (test?.title) existing.tests.add(test.title)
+      existing.apiCalls.add(formatApiCall(event.request))
+    }
+    if (event.request?.route?.startsWith('/api/')) {
+      const existing = ensureRouteRuntime(routeInfo, event.request.route)
+      existing.runtimes.add('browser')
+      if (test?.title) existing.tests.add(test.title)
+      existing.apiCalls.add(formatApiCall(event.request))
+    }
+    return
+  }
+
+  const route = event.route ?? routeFromUrl(event.url ?? '')
+  if (!route) return
+  const existing = ensureRouteRuntime(routeInfo, route)
+  existing.runtimes.add('browser')
+  if (test?.title) existing.tests.add(test.title)
+
+  const label = formatUiEvent(event)
+  if (label) existing.uiEvents.add(label)
+
+  if (event.kind === 'dom-state') {
+    const state = event.state ?? event.type
+    existing.uxStates.add(event.count === undefined ? state : `${state}`)
+  }
+}
+
+function ensureRouteRuntime(routeInfo: Map<string, RouteRuntimeInfo>, route: string): RouteRuntimeInfo {
+  const existing =
+    routeInfo.get(route) ??
     ({
       route,
       runtimes: new Set(),
       tests: new Set(),
       uxStates: new Set(),
+      uiEvents: new Set(),
+      apiCalls: new Set(),
     } satisfies RouteRuntimeInfo)
-
-  existing.runtimes.add('browser')
-  if (title) existing.tests.add(title)
   routeInfo.set(route, existing)
+  return existing
+}
+
+function formatUiEvent(event: BrowserUiEvent): string | undefined {
+  const target = event.target
+  const targetName = target?.name ? `"${target.name}"` : target?.testId ? `[${target.testId}]` : target?.selector
+  const targetRole = target?.role ?? target?.tag
+  const prefix = event.kind === 'dom-state' ? event.type : event.type
+  const count = event.count === undefined ? '' : ` (${event.count})`
+  const checked = event.checked === undefined ? '' : ` ${event.checked ? 'checked' : 'unchecked'}`
+  if (!targetName && !targetRole) return `${prefix}${count}${checked}`.trim()
+  return `${prefix}: ${[targetRole, targetName].filter(Boolean).join(' ')}${count}${checked}`.trim()
+}
+
+function formatApiCall(request: NonNullable<BrowserUiEvent['request']>): string {
+  const method = request.method ?? 'GET'
+  const route = request.route ?? routeFromUrl(request.url) ?? request.url
+  const status = request.status === undefined ? '' : ` ${request.status}`
+  return `${method} ${route}${status}`
+}
+
+function isRelevantApiCall(request: NonNullable<BrowserUiEvent['request']>): boolean {
+  if (isStaticAssetRequest(request.url, request.route)) return false
+  return request.route?.startsWith('/api/') === true || request.resourceType === 'fetch' || request.resourceType === 'xhr'
 }
 
 function routeFromUrl(value: string): string | undefined {
@@ -508,6 +592,19 @@ function routeFromUrl(value: string): string | undefined {
     return pathname
   } catch {
     return undefined
+  }
+}
+
+function isStaticAssetRequest(value: string, route: string | undefined): boolean {
+  if (route?.startsWith('/api/')) return false
+  try {
+    const url = new URL(value)
+    if (url.pathname.startsWith('/_next/static/')) return true
+    if (url.pathname.startsWith('/_next/image')) return true
+    if (url.pathname === '/favicon.ico') return true
+    return /\.(?:css|js|mjs|map|png|jpe?g|gif|webp|avif|svg|ico|woff2?|ttf|otf)$/i.test(url.pathname)
+  } catch {
+    return false
   }
 }
 

@@ -23,6 +23,8 @@ export type CovraMetaFile = {
     runtimes?: string[]
     tests: string[]
     uxStates: string[]
+    uiEvents?: string[]
+    apiCalls?: string[]
   }>
 }
 
@@ -55,6 +57,8 @@ export async function writeMetaFile(options: {
       runtimes: [...route.runtimes],
       tests: [...route.tests],
       uxStates: [...route.uxStates],
+      uiEvents: [...route.uiEvents],
+      apiCalls: [...route.apiCalls],
     })),
   }
 

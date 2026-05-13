@@ -52,6 +52,8 @@ describe('buildRouteCoverageRows', () => {
             route: '/counter',
             tests: ['counter increments'],
             uxStates: ['counter.increment.success'],
+            uiEvents: ['click: button "Increment"'],
+            apiCalls: ['POST /api/counter 200'],
           },
         ],
       })
@@ -63,6 +65,8 @@ describe('buildRouteCoverageRows', () => {
         flow: { pct: 100, covered: 1, total: 1 },
         tests: ['counter increments'],
         uxStates: ['counter.increment.success'],
+        uiEvents: ['click: button "Increment"'],
+        apiCalls: ['POST /api/counter 200'],
       })
       expect(rows.find((row) => row.route === '/[locale]/pricing')).toMatchObject({
         route: '/[locale]/pricing',

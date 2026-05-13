@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import type {
   BrowserCoverageArtifact,
+  BrowserUiEvent,
   NormalizedCovraConfig,
   PlaywrightJSCoverageEntry,
 } from './types.js'
@@ -12,6 +13,7 @@ export async function writeBrowserCoverageArtifact(options: {
   entries: PlaywrightJSCoverageEntry[]
   navigations?: string[]
   requests?: string[]
+  uiEvents?: BrowserUiEvent[]
   test?: BrowserCoverageArtifact['test']
 }): Promise<string> {
   const dir = path.join(options.rawDir, 'browser')
@@ -30,6 +32,7 @@ export async function writeBrowserCoverageArtifact(options: {
     entries: options.entries,
     navigations: options.navigations,
     requests: options.requests,
+    uiEvents: options.uiEvents,
   }
 
   await fs.writeFile(file, JSON.stringify(artifact, null, 2))
